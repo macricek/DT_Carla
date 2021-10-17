@@ -1,4 +1,4 @@
-from carlaDP import runCarla
+from carlaDP import Environment
 import genetic_learning
 
 
@@ -17,7 +17,8 @@ def test_genetic():
 
 
 def main():
-    runCarla()
+    env = Environment(False)
+    env.__del__()
 
 if __name__ == '__main__':
     main()
