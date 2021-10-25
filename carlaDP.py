@@ -1,4 +1,5 @@
 import glob
+import html
 import os
 import sys
 import random
@@ -34,7 +35,7 @@ class Environment:
     SHOW_CAM = True
     cam_width = IM_WIDTH
     cam_height = IM_HEIGHT
-    debug = False
+    debug = True
 
     # lists
     utilities = []  # list of "actors"
@@ -68,9 +69,9 @@ class Environment:
         self.spawn()
         self.rgbCameraSensor()
         self.collisionSensor()
-        self.lidarSensor()
-        self.controlVehicle(0.5, 0)
-        time.sleep(20)
+        #self.lidarSensor()
+        self.controlVehicle(1, 0)
+        self.run()
 
     def spawn(self):
         self.start = random.choice(self.world.get_map().get_spawn_points())
@@ -99,6 +100,7 @@ class Environment:
 
     def lidarSensor(self):
         lidar = self.blueprints.find('sensor.lidar.ray_cast')
+        lidar.channels = 1
         where = carla.Transform(carla.Location(x=0, z=0))
         self.sLidar = self.world.spawn_actor(lidar, where, attach_to=self.vehicle)
         self.sLidar.listen(lambda lidarData: self.processLidarMeasure(lidarData))
@@ -114,19 +116,28 @@ class Environment:
     def processRGB(self, image):
         i = np.array(image.raw_data)
         i2 = i.reshape((IM_HEIGHT, IM_WIDTH, 4))
-        im = i2[:, :, :3]
+        im = i2[:, :, :1]
+        im2 = im.reshape((IM_HEIGHT, IM_WIDTH))
         if self.SHOW_CAM:
             cv2.imshow("Camera", im)
-            cv2.waitKey(1)
-        self.frontView = im
+            cv2.waitKey(10000)
+        self.frontView = im2
 
     def processCollison(self, collision):
         self.collisions.append(collision)
 
+    def run(self):
+        while True:
+            if self.frontView is not None:
+                cv2.imshow("Modified", self.frontView)
+                break
+
     def processLidarMeasure(self, lidarData):
         if self.debug:
+            number = 0
             for location in lidarData:
-                print(location)
+                print("{num}: {location}".format(num=number,location=location))
+                number += 1
 
     def __del__(self):
         for utility in self.utilities:

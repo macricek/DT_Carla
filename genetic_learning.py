@@ -104,3 +104,4 @@ def genetic():
     print(ga_instance.best_solutions_fitness)
     #ga_instance.plot_fitness()
     return ga_instance, solution_fitness
+
