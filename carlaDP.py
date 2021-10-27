@@ -31,7 +31,7 @@ def printLocation(location):
     print("X: {x}, Y: {y}, Z: {z}".format(x=x, y=y, z=z))
 
 
-class Environment:
+class CarlaCar:
     SHOW_CAM = True
     cam_width = IM_WIDTH
     cam_height = IM_HEIGHT
@@ -120,7 +120,6 @@ class Environment:
         im2 = im.reshape((IM_HEIGHT, IM_WIDTH))
         if self.SHOW_CAM:
             cv2.imshow("Camera", im)
-            cv2.waitKey(10000)
         self.frontView = im2
 
     def processCollison(self, collision):
@@ -136,7 +135,7 @@ class Environment:
         if self.debug:
             number = 0
             for location in lidarData:
-                print("{num}: {location}".format(num=number,location=location))
+                print("{num}: {location}".format(num=number, location=location))
                 number += 1
 
     def __del__(self):

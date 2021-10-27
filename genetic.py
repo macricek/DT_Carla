@@ -20,8 +20,8 @@ def genrpop(popsize, space):
 
 ############ SELECTIONS ############
 
-def selsort(pop,fitPop,N):
 
+def selsort(pop,fitPop,N):
     lstring = pop.shape[1]
     idxs = np.argsort(fitPop)
     newPop = np.zeros((N, lstring))
