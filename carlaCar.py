@@ -18,8 +18,6 @@ except IndexError:
 import carla
 
 ## global constants
-IM_WIDTH = 640
-IM_HEIGHT = 480
 
 actor_list = []
 
@@ -32,9 +30,8 @@ def printLocation(location):
 
 
 class CarlaCar:
-    SHOW_CAM = True
-    cam_width = IM_WIDTH
-    cam_height = IM_HEIGHT
+    SHOW_CAM = False
+
     debug = True
 
     # lists
@@ -55,18 +52,22 @@ class CarlaCar:
 
     # positions
     start = None
+    location = None
 
     # camera images
     frontView = None
 
-    def __init__(self, debug=False):
+    def __init__(self, IM_WIDTH, IM_HEIGHT, debug=False):
         self.debug = debug
+        self.cam_width = IM_WIDTH
+        self.cam_height = IM_HEIGHT
         self.client = carla.Client('localhost', 2000)
         self.client.set_timeout(4.0)
         self.world = self.client.get_world()
         self.blueprints = self.world.get_blueprint_library()
-        self.model = random.choice(self.blueprints.filter('vehicle'))
+        self.model = self.blueprints.filter('model3')[0]
         self.spawn()
+        self.location = self.vehicle.get_location()
         self.rgbCameraSensor()
         self.collisionSensor()
         #self.lidarSensor()
@@ -83,8 +84,8 @@ class CarlaCar:
 
     def rgbCameraSensor(self):
         camera = self.blueprints.find('sensor.camera.rgb')
-        camera.set_attribute('image_size_x', f'{IM_WIDTH}')
-        camera.set_attribute('image_size_y', f'{IM_HEIGHT}')
+        camera.set_attribute('image_size_x', f'{self.cam_width}')
+        camera.set_attribute('image_size_y', f'{self.cam_height}')
         camera.set_attribute('fov', '110')
         where = carla.Transform(carla.Location(x=2.5, z=0.7))
         self.sCam = self.world.spawn_actor(camera, where, attach_to=self.vehicle)
@@ -115,21 +116,28 @@ class CarlaCar:
 
     def processRGB(self, image):
         i = np.array(image.raw_data)
-        i2 = i.reshape((IM_HEIGHT, IM_WIDTH, 4))
-        im = i2[:, :, :1]
-        im2 = im.reshape((IM_HEIGHT, IM_WIDTH))
+        i2 = i.reshape((self.cam_height, self.cam_width, 4))
+        im = i2[:, :, :3]
+        #im2 = im.reshape((self.cam_height, self.cam_width))
         if self.SHOW_CAM:
             cv2.imshow("Camera", im)
-        self.frontView = im2
+            cv2.waitKey(1)
+        self.frontView = im
 
     def processCollison(self, collision):
         self.collisions.append(collision)
 
     def run(self):
-        while True:
+        start = time.time()
+        now = time.time()
+        while now - start < 15 and not self.collisions:
+            self.location = self.vehicle.get_location()
+            printLocation(self.location)
             if self.frontView is not None:
-                cv2.imshow("Modified", self.frontView)
-                break
+                cv2.imshow("Camera", self.frontView)
+                cv2.waitKey(1)
+            time.sleep(0.05)
+            now = time.time()
 
     def processLidarMeasure(self, lidarData):
         if self.debug:

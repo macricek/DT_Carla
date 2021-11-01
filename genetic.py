@@ -6,9 +6,9 @@ import math
 def genrpop(popsize, space):
 
     lstring = space.shape[1]
-    newPop = np.zeros((popsize,lstring))
-    for r in range(0,popsize):
-        for s in range(0,lstring):
+    newPop = np.zeros((popsize, lstring))
+    for r in range(0, popsize):
+        for s in range(0, lstring):
             d = space[1, s] - space[0, s]
             newPop[r, s] = random.uniform(0, 1) * d + space[0, s]
             if newPop[r, s] < space[0, s]:
