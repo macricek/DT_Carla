@@ -1,5 +1,5 @@
 import math
-
+import tensorflow as tf
 import numpy as np
 
 
@@ -87,3 +87,13 @@ class NeuralNetwork:
             O[0, i] = math.tanh(tmp[0, i])
 
         return O
+
+class TensorNeural:
+    def __init__(self):
+        print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+        model = tf.keras.Sequential()
+        model.add(tf.keras.layers.Dense(8))
+        model.add(tf.keras.layers.Dense(4))
+        model.build((None, 16))
+        len(model.weights)
+        self.model = model
