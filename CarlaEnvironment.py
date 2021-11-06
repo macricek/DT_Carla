@@ -26,14 +26,15 @@ class CarlaEnvironment:
 
     # lists
     vehicles = []
-
+    maxId = 50
     #members
     client = None
     world = None
     blueprints = None
     model = None
 
-    def __init__(self, camWidth, camHeight, debug=False):
+    def __init__(self, camWidth, camHeight, numVehicles, debug=False):
+        self.id = 0
         self.debug = debug
         self.camWidth = camWidth
         self.camHeight = camHeight
@@ -42,22 +43,26 @@ class CarlaEnvironment:
         self.world = self.client.get_world()
         self.blueprints = self.world.get_blueprint_library()
         self.model = self.blueprints.filter('model3')[0]
-        time.sleep(30)
-        #self.run()
+        self.spawnVehicles(numVehicles)
+        self.run()
 
-    def spawnVehicle(self):
-        start = random.choice(self.world.get_map().get_spawn_points())
-        vehicle = Vehicle(self, start)
-        self.vehicles.append(vehicle)
-        return vehicle
+    def spawnVehicles(self, numVehicles):
+        for i in range(0, numVehicles):
+            id = self.id + 1
+            start = random.choice(self.world.get_map().get_spawn_points())
+            vehicle = Vehicle(self, start, id=id)
+            self.vehicles.append(vehicle)
+            self.id = id
+            time.sleep(1)
 
     def run(self):
-        return None
+        for vehicle in self.vehicles:
+            vehicle.run()
 
     def __del__(self):
-        for utility in self.utilities:
+        for vehicle in self.vehicles:
             try:
-                utility.destroy()
+                vehicle.destroy()
                 print("Removing utility!")
             except:
                 print("Already deleted!")
@@ -89,10 +94,11 @@ class Vehicle:
     def __init__(self, environment, spawnLocation, id):
         self.id = id
         self.environment = environment
+        self.debug = self.environment.debug
         self.me = self.environment.world.spawn_actor(self.environment.model, spawnLocation)
         self.processMeasures()
         if self.debug:
-            print("Vehicle {id} starting".format(self.id))
+            print("Vehicle {id} starting".format(id=self.id))
 
     def run(self):
         start = time.time()
@@ -113,7 +119,7 @@ class Vehicle:
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
         if self.debug:
             print("{id}:[Control] T: {th}, S: {st}, B: {b}".format(id=self.id, th=throttle, st=steer, b=brake))
-        self.vehicle.apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake,
+        self.me.apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake,
                                                         hand_brake=hand_brake, reverse=reverse))
 
     def processMeasures(self):
@@ -171,9 +177,11 @@ class Vehicle:
         x = vector.x
         y = vector.y
         z = vector.z
-        print("{id}:[{t}}] X: {x}, Y: {y}, Z: {z}".format(id=self.id, t=type, x=x, y=y, z=z))
+        print("{id}:[{t}] X: {x}, Y: {y}, Z: {z}".format(id=self.id, t=type, x=x, y=y, z=z))
 
-    def __del__(self):
+    def destroy(self):
         for actor in self.actors:
             actor.destroy()
-            #self.actors.remove(actor)
+
+    def __del__(self):
+        self.destroy()

@@ -5,10 +5,7 @@ import time
 import sys
 import cv2
 from neuralNetwork import NeuralNetwork as NN
-from neuralNetwork import TensorNeural as TN
 
-def tensortest():
-    tn = TN()
 
 def main():
     cc = CarlaEnvironment(640, 480, True)
