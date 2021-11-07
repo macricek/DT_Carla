@@ -8,10 +8,15 @@ from neuralNetwork import NeuralNetwork as NN
 
 
 def main():
-    cc = CarlaEnvironment(640, 480, True)
-    cc.__del__()
+    try:
+        cc = CarlaEnvironment(640, 480, 2, True)
+        cc.run()
+
+    finally:
+        print("Invoking deletion of object Environment")
+        cc.deleteAll()
+        del cc
 
 
 if __name__ == '__main__':
     main()
-    print("It works!")

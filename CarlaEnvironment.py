@@ -1,5 +1,5 @@
 import glob
-import html
+import threading
 import os
 import sys
 import random
@@ -26,6 +26,7 @@ class CarlaEnvironment:
 
     # lists
     vehicles = []
+    allFeatures = []
     maxId = 50
     #members
     client = None
@@ -44,31 +45,49 @@ class CarlaEnvironment:
         self.blueprints = self.world.get_blueprint_library()
         self.model = self.blueprints.filter('model3')[0]
         self.spawnVehicles(numVehicles)
-        self.run()
+        self.startThreads()
 
     def spawnVehicles(self, numVehicles):
         for i in range(0, numVehicles):
-            id = self.id + 1
-            start = random.choice(self.world.get_map().get_spawn_points())
-            vehicle = Vehicle(self, start, id=id)
+            spawnPoints = self.world.get_map().get_spawn_points()
+            start = spawnPoints[self.id]
+            vehicle = Vehicle(self, start, id=self.id)
             self.vehicles.append(vehicle)
-            self.id = id
+            self.allFeatures.append(vehicle)
+            self.id += 1
             time.sleep(1)
+
+    def startThreads(self):
+        for vehicle in self.vehicles:
+            vehicle.start()
 
     def run(self):
         for vehicle in self.vehicles:
             vehicle.run()
+            vehicle.join()
 
-    def __del__(self):
-        for vehicle in self.vehicles:
+    def deleteVehicle(self, vehicle):
+        for v in self.vehicles:
+            if v == vehicle:
+                try:
+                    self.vehicles.remove(vehicle)
+                    del vehicle
+                except:
+                    print("already out")
+                finally:
+                    break
+
+    def deleteAll(self):
+        print("Destroying")
+        for actor in self.allFeatures:
             try:
-                vehicle.destroy()
+                actor.destroy()
                 print("Removing utility!")
             except:
                 print("Already deleted!")
 
 
-class Vehicle:
+class Vehicle(threading.Thread):
     me = None #ref to vehicle
     environment = None #ref to environment upper
 
@@ -92,35 +111,44 @@ class Vehicle:
     actors = []
 
     def __init__(self, environment, spawnLocation, id):
-        self.id = id
+        threading.Thread.__init__(self)
+        self.threadID = id  # threadOBJ
         self.environment = environment
         self.debug = self.environment.debug
         self.me = self.environment.world.spawn_actor(self.environment.model, spawnLocation)
+        self.setupSensors()
         self.processMeasures()
         if self.debug:
-            print("Vehicle {id} starting".format(id=self.id))
+            print("Vehicle {id} starting".format(id=self.threadID))
 
     def run(self):
         start = time.time()
         now = time.time()
-        while now - start < MAX_TIME_CAR and not self.isColission:
+        while now - start < MAX_TIME_CAR and not self.isColission and self.me:
             #there it will NN decide
             steer = random.uniform(-1, 1)
             throttle = random.uniform(0, 1)
             self.controlVehicle(throttle=throttle, steer=steer)
             self.processMeasures()
             if self.debug and self.frontView is not None:
-                cv2.imshow("Camera", self.frontView)
+                cv2.imshow("Vehicle {id}".format(id=self.threadID), self.frontView)
                 cv2.waitKey(1)
 
             time.sleep(0.05)
             now = time.time()
+        self.destroy()
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
         if self.debug:
-            print("{id}:[Control] T: {th}, S: {st}, B: {b}".format(id=self.id, th=throttle, st=steer, b=brake))
+            print("{id}:[Control] T: {th}, S: {st}, B: {b}".format(id=self.threadID, th=throttle, st=steer, b=brake))
         self.me.apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake,
                                                         hand_brake=hand_brake, reverse=reverse))
+
+    def setupSensors(self):
+        self.rgbCameraSensor()
+        self.collisionSensor()
+        self.environment.allFeatures.append(self.me)
+        self.environment.allFeatures.extend(self.actors)
 
     def processMeasures(self):
         self.location = self.me.get_location()
@@ -142,14 +170,14 @@ class Vehicle:
         self.sCam.listen(lambda data: self.processRGB(data))
 
     def collisionSensor(self):
-        colsensor = self.blueprints.find('sensor.other.collision')
+        colsensor = self.environment.blueprints.find('sensor.other.collision')
         where = carla.Transform(carla.Location(x=1.5, z=0.7))
         self.sCollision = self.environment.world.spawn_actor(colsensor, where, attach_to=self.me)
         self.sCollision.listen(lambda collision: self.processCollison(collision))
         self.actors.append(self.sCollision)
 
     def lidarSensor(self):
-        lidar = self.blueprints.find('sensor.lidar.ray_cast')
+        lidar = self.environment.blueprints.find('sensor.lidar.ray_cast')
         lidar.channels = 1
         where = carla.Transform(carla.Location(x=0, z=0))
         self.sLidar = self.environment.world.spawn_actor(lidar, where, attach_to=self.me)
@@ -165,6 +193,8 @@ class Vehicle:
 
     def processCollison(self, collision):
         self.isColission = True
+        if self.debug:
+            print("Vehicle {id} collided!".format(id=self.threadID))
 
     def processLidarMeasure(self, lidarData):
         if self.debug:
@@ -177,11 +207,14 @@ class Vehicle:
         x = vector.x
         y = vector.y
         z = vector.z
-        print("{id}:[{t}] X: {x}, Y: {y}, Z: {z}".format(id=self.id, t=type, x=x, y=y, z=z))
+        print("{id}:[{t}] X: {x}, Y: {y}, Z: {z}".format(id=self.threadID, t=type, x=x, y=y, z=z))
 
     def destroy(self):
-        for actor in self.actors:
-            actor.destroy()
-
-    def __del__(self):
-        self.destroy()
+        if self.debug:
+            print("Destroying Vehicle {id}".format(id=self.threadID))
+        try:
+            for actor in self.actors:
+                actor.destroy()
+            self.me.destroy()
+        finally:
+            self.environment.deleteVehicle(self)
