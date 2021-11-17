@@ -1,4 +1,4 @@
-from carlaCar import CarlaCar
+from CarlaEnvironment import CarlaEnvironment
 import genetic
 import numpy as np
 import time
@@ -8,13 +8,15 @@ from neuralNetwork import NeuralNetwork as NN
 
 
 def main():
-    cc = CarlaCar(640, 480, True)
+    try:
+        cc = CarlaEnvironment(2, True)
+        cc.run()
 
-    #cv2.imshow("ukazka", cc.frontView)
-    #cv2.waitKey(0)
-    cc.__del__()
+    finally:
+        print("Invoking deletion of object Environment")
+        cc.deleteAll()
+        del cc
 
 
 if __name__ == '__main__':
     main()
-    print("It works!")

@@ -1,4 +1,4 @@
-from carlaCar import CarlaCar
+from CarlaEnvironment import CarlaEnvironment
 import genetic
 import numpy as np
 import time
@@ -50,12 +50,14 @@ pop = np.concatenate((Best, SortPop, BestPop, WorkPop, NPop), axis=0)
 end = time.time()
 print(end - start)
 
+
 def main():
-    cc = CarlaCar(IM_WIDTH, IM_HEIGHT, True)
+    cc = CarlaEnvironment(IM_WIDTH, IM_HEIGHT, True)
     cc.__del__()
 
 
 if __name__ == '__main__':
+    main()
     print("It works!")
 
 
