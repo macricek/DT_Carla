@@ -9,7 +9,7 @@ from neuralNetwork import NeuralNetwork as NN
 
 def main():
     try:
-        cc = CarlaEnvironment(2, True)
+        cc = CarlaEnvironment(1, True)
         cc.run()
 
     finally:

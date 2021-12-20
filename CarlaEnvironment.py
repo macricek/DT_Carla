@@ -7,7 +7,7 @@ import time
 import numpy as np
 import cv2
 import math
-import weakref
+from carla import ColorConverter as cc
 
 # from Carla doc
 try:
@@ -117,11 +117,13 @@ class Vehicle(threading.Thread):
 
     #camera
     __rgb = None
+    __seg = None
 
     #sensor
     __collision = None
     __lidar = None
     __radar = None
+    __obstacleDetector = None
 
     sensors = []
 
@@ -143,12 +145,17 @@ class Vehicle(threading.Thread):
             #there it will NN decide
             steer = random.uniform(-1, 1)
             throttle = random.uniform(0, 1)
-            self.controlVehicle(throttle=throttle, steer=steer)
-            self.processMeasures()
-            if self.debug and self.__rgb.isImageAvailable():
-                self.__rgb.draw()
-            time.sleep(0.05)
-            now = time.time()
+            try:
+                self.controlVehicle(throttle=throttle, steer=steer)
+                self.processMeasures()
+                if self.debug and self.__rgb.isImageAvailable():
+                    self.__rgb.draw()
+                if self.debug and self.__seg.isImageAvailable():
+                    self.__seg.draw()
+                time.sleep(0.05)
+                now = time.time()
+            except:
+                None
         self.destroy()
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
@@ -162,14 +169,18 @@ class Vehicle(threading.Thread):
 
     def setupSensors(self):
         self.environment.allFeatures.append(self.me)
-        self.__rgb = RGBCamera(self, self.camHeight, self.camWidth)
+        self.__rgb = Camera(self, self.camHeight, self.camWidth)
+        self.__seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
         self.__collision = CollisionSensor(self)
-        self.__radar = RadarSensor(self)
-        self.__lidar = LidarSensor(self)
+        #self.__radar = RadarSensor(self, True)
+        #self.__lidar = LidarSensor(self)
+        self.__obstacleDetector = ObstacleDetector(self)
         self.sensors.append(self.__rgb)
+        self.sensors.append(self.__seg)
         self.sensors.append(self.__collision)
-        self.sensors.append(self.__radar)
-        self.sensors.append(self.__lidar)
+        #self.sensors.append(self.__radar)
+        #self.sensors.append(self.__lidar)
+        self.sensors.append(self.__obstacleDetector)
         self.environment.allFeatures.extend(self.sensors)
 
     def processMeasures(self):
@@ -226,7 +237,10 @@ class Sensor(object):
 
     def destroy(self):
         if self.sensor is not None:
-            self.sensor.destroy()
+            try:
+                self.sensor.destroy()
+            except:
+                None
 
 
 class RadarSensor(Sensor):
@@ -238,54 +252,60 @@ class RadarSensor(Sensor):
         bp.set_attribute('vertical_fov', str(20))
         where = carla.Transform(carla.Location(x=1.5))
         self.setSensor(self.world().spawn_actor(bp, where, attach_to=self.reference()))
-        # We need a weak reference to self to avoid circular reference.
-        weak_self = weakref.ref(self)
         self.sensor.listen(
-            lambda radar_data: RadarSensor._Radar_callback(weak_self, radar_data))
+            lambda radar_data: self._Radar_callback(radar_data))
 
-    @staticmethod
-    def _Radar_callback(weak_self, radar_data):
-        self = weak_self()
-        if not self:
-            return
-        # To get a numpy [[vel, altitude, azimuth, depth],...[,,,]]:
-        # points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
-        # points = np.reshape(points, (len(radar_data), 4))
-        print("GOT RADAR DATA")
+    def _Radar_callback(self, radar_data):
         current_rot = radar_data.transform.rotation
+        i = 0
         for detect in radar_data:
             azi = math.degrees(detect.azimuth)
             alt = math.degrees(detect.altitude)
+            dist = detect.depth
+            if self.debug:
+                print("Dist to {i}: {d}, Azimuth: {a}, Altitude: {al}".format(i=i, d=dist, a=azi, al=alt))
+                i+=1
 
 
-class RGBCamera(Sensor):
-    __camHeight = None
-    __camWidth = None
-    __showImage = False
+class Camera(Sensor):
+    _camHeight = None
+    _camWidth = None
     image = None
 
-    def __init__(self, vehicle, height, width, debug=False):
-        self.__camHeight = height
-        self.__camWidth = width
+    options = {
+        'RGB': ['sensor.camera.rgb', cc.Raw],
+        'Depth': ['sensor.camera.depth', cc.LogarithmicDepth],
+        'Semantic Segmentation': ['sensor.camera.semantic_segmentation', cc.CityScapesPalette]
+    }
+
+    def __init__(self, vehicle, height, width, type='RGB', debug=False):
+        self._camHeight = height
+        self._camWidth = width
         super().__init__(vehicle, debug)
-        camera = super().blueprints().find('sensor.camera.rgb')
-        camera.set_attribute('image_size_x', f'{self.__camWidth}')
-        camera.set_attribute('image_size_y', f'{self.__camHeight}')
+        self.option = self.options.get(type)
+        self.type = type
+        camera = super().blueprints().find(self.option[0])
+        camera.set_attribute('image_size_x', f'{self._camWidth}')
+        camera.set_attribute('image_size_y', f'{self._camHeight}')
         camera.set_attribute('fov', '110')
+
         where = carla.Transform(carla.Location(x=2.5, z=0.7))
         self.setSensor(self.world().spawn_actor(camera, where, attach_to=self.reference()))
         self.sensor.listen(lambda image: self._cameraCallback(image))
 
     def _cameraCallback(self, image):
+        image.convert(self.option[1])
         i = np.array(image.raw_data)
-        i2 = i.reshape((self.__camHeight, self.__camWidth, 4))
-        self.image = im = i2[:, :, :3]
+        i2 = i.reshape((self._camHeight, self._camWidth, 4))
+        self.image = i2[:, :, :3]
+        if self.type.startswith('S'):
+            image.save_to_disk('_out/%08d' % image.frame)
 
     def isImageAvailable(self):
         return self.image is not None
 
     def draw(self):
-        cv2.imshow("Vehicle {id}".format(id=self.vehicle.threadID), self.image)
+        cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.type), self.image)
         cv2.waitKey(1)
 
 
@@ -306,6 +326,20 @@ class CollisionSensor(Sensor):
 
     def isCollided(self):
         return self.__collided
+
+
+class ObstacleDetector(Sensor):
+    def __init__(self, vehicle, debug=False):
+        super().__init__(vehicle, debug)
+        obsDetector = super().blueprints().find('sensor.other.obstacle')
+        where = carla.Transform(carla.Location(x=1.5, z=0.7))
+        self.setSensor(self.world().spawn_actor(obsDetector, where, attach_to=self.reference()))
+        self.sensor.listen(lambda obstacle: self.processObstacle(obstacle))
+
+    @staticmethod
+    def processObstacle(obstacle):
+        distance = obstacle.distance
+        print("{distance}".format(distance=distance))
 
 
 class LidarSensor(Sensor):

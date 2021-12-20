@@ -52,7 +52,7 @@ print(end - start)
 
 
 def main():
-    cc = CarlaEnvironment(IM_WIDTH, IM_HEIGHT, True)
+    cc = CarlaEnvironment(1, False)
     cc.__del__()
 
 
