@@ -26,6 +26,7 @@ import torchvision
 import torchvision.transforms as T
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.cuda.empty_cache()
 
 
 def timeSince(since):
@@ -45,15 +46,23 @@ def sample(dataset, num_samples):
     return samples
 
 
-def showDataset(dataset, num_imgs):
+def showDataset(dataset, num_imgs, model=None):
     imgs = sample(dataset, num_imgs)
-    fig, axs = plt.subplots(num_imgs, 2, figsize=(10, 5 * num_imgs))
+    if model is not None:
+        number = 3
+    else:
+        number = 2
+
+    fig, axs = plt.subplots(num_imgs, number, figsize=(10, 5 * num_imgs))
     for i in range(num_imgs):
         # Image
         axs[i, 0].imshow(imgs[i][0].permute(1, 2, 0))
-
         # Original Mask
         axs[i, 1].imshow(imgs[i][1])
+        # Predict from NN
+        if model is not None:
+            nnMask = model.predict(imgs[i][0])
+            axs[i, 2].imshow(nnMask.cpu())
     plt.show()
 
 
@@ -89,7 +98,7 @@ class LaneDetectionDataset(Dataset):
 
 
 class DeepNeuralNetwork:
-    def __init__(self, from_scratch=True, path='unet_model.pth', best=False):
+    def __init__(self, from_scratch=True, path='unet_model.pth'):
         self.val_epoch = None
         self.train_epoch = None
         self.optimizer = None
@@ -97,8 +106,8 @@ class DeepNeuralNetwork:
 
         self.train_dataset = LaneDetectionDataset(data_path, val=False, transforms=testtransform)
         self.val_dataset = LaneDetectionDataset(data_path, val=True, transforms=testtransform)
-        self.trainloader = DataLoader(self.train_dataset, batch_size=4, shuffle=True)
-        self.valloader = DataLoader(self.val_dataset, batch_size=4, shuffle=True)
+        self.trainloader = DataLoader(self.train_dataset, batch_size=2, shuffle=True)
+        self.valloader = DataLoader(self.val_dataset, batch_size=2, shuffle=True)
         self.path = path
 
         self.model = smp.UnetPlusPlus(encoder_name='resnet34',
@@ -107,13 +116,6 @@ class DeepNeuralNetwork:
                                       classes=3).to(device)
         if from_scratch:
             print('Model initialised from Scratch.')
-
-        elif best:
-            path = path.split('.')
-            path[0] += '_best'
-            path = '.'.join(path)
-            self.model.load_state_dict(torch.load(path))
-            print('Loaded saved model at: ', path)
         else:
             self.model.load_state_dict(torch.load(path))
             print('Loaded saved model at: ', path)
@@ -151,6 +153,11 @@ class DeepNeuralNetwork:
             torch.save(self.model.cpu().state_dict(), self.path)
             print("Model saved to " + self.path)
 
+    def predict(self, image):
+        predictedMask = self.model(image.unsqueeze(0).to(device))
+        predictedMask = torch.argmax(predictedMask.squeeze(), axis=0)
+        return predictedMask
+
 
 # Global Definitions
 model_path = 'unet_model.pth'
@@ -166,9 +173,14 @@ testtransform = A.Compose([
 train_dataset = LaneDetectionDataset(data_path, val=False, transforms=testtransform)
 val_dataset = LaneDetectionDataset(data_path, val=True, transforms=testtransform)
 
-showDataset(num_imgs=4, dataset=val_dataset)
+best = True
+if best:
+    model = DeepNeuralNetwork(from_scratch=not best)
+else:
+    model = DeepNeuralNetwork(from_scratch=not best)
+    model.setTrainingParams()
+    model.train(num_epochs=2, save=True)
 
-model = DeepNeuralNetwork(from_scratch=True)
-model.setTrainingParams()
-model.train(num_epochs=2, save=True)
+showDataset(num_imgs=4, dataset=val_dataset, model=model)
+
 
