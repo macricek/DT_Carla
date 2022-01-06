@@ -1,32 +1,42 @@
 import os
-import glob
-from pathlib import Path
+#import glob
+#from pathlib import Path
 import time
 import math
 from random import randint
-import glob
-import numpy as np
-import pandas as pd
+#import glob
+#import numpy as np
+#import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.colors as mtc
-from PIL import Image
-from tqdm import tqdm
+#import matplotlib.colors as mtc
+#from PIL import Image
+#from tqdm import tqdm
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
-from sklearn.model_selection import KFold
-import seaborn as sns
+#from sklearn.model_selection import KFold
+#import seaborn as sns
 import segmentation_models_pytorch as smp
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
+#import torch.nn as nn
+#import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-import torchvision
-import torchvision.transforms as T
+#import torchvision
+#import torchvision.transforms as T
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.cuda.empty_cache()
+# Augmentation
+testtransform = A.Compose([
+    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    ToTensorV2()
+])
+
+# Global Definitions
+
+model_path = 'unet_model.pth'
+data_path = 'Kaggle/'
 
 
 def timeSince(since):
@@ -66,6 +76,15 @@ def showDataset(dataset, num_imgs, model=None):
     plt.show()
 
 
+def transformImage(image, transformation=None, mask=None):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    if transformation:
+        transformed = transformation(image=image, mask=mask)
+        img = transformed['image']
+        mask = transformed['mask'].long()
+    return img, mask
+
+
 class LaneDetectionDataset(Dataset):
     def __init__(self, path, val=False, transforms=None):
         self.transforms = transforms
@@ -80,32 +99,28 @@ class LaneDetectionDataset(Dataset):
     def __getitem__(self, idx, imShow=False):
         img_name = self.img_names[idx]
         mask_name = img_name[:-4] + '_label' + img_name[-4:]
-        img = cv2.imread(self.img_path + img_name)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        mask = cv2.imread(self.mask_path + mask_name, cv2.IMREAD_UNCHANGED)
+        rawImg = cv2.imread(self.img_path + img_name)
+        rawMask = cv2.imread(self.mask_path + mask_name, cv2.IMREAD_UNCHANGED)
         if imShow:
-            cv2.imshow("Image", img)
-            cv2.imshow("Mask", mask)
+            cv2.imshow("Image", rawImg)
+            cv2.imshow("Mask", rawMask)
             cv2.waitKey(0)
-        if self.transforms:
-            transformed = self.transforms(image=img, mask=mask)
-            img = transformed['image']
-            mask = transformed['mask'].long()
+        img, mask = transformImage(rawImg, self.transforms, rawMask)
         return img, mask
 
     def __len__(self):
         return len(self.img_names)
 
 
-class DeepNeuralNetwork:
-    def __init__(self, from_scratch=True, path='unet_model.pth'):
+class CNNLineDetector:
+    def __init__(self, from_scratch=True, path='unet_model.pth', dataPath=data_path):
         self.val_epoch = None
         self.train_epoch = None
         self.optimizer = None
         self.loss = None
 
-        self.train_dataset = LaneDetectionDataset(data_path, val=False, transforms=testtransform)
-        self.val_dataset = LaneDetectionDataset(data_path, val=True, transforms=testtransform)
+        self.train_dataset = LaneDetectionDataset(dataPath, val=False, transforms=testtransform)
+        self.val_dataset = LaneDetectionDataset(dataPath, val=True, transforms=testtransform)
         self.trainloader = DataLoader(self.train_dataset, batch_size=2, shuffle=True)
         self.valloader = DataLoader(self.val_dataset, batch_size=2, shuffle=True)
         self.path = path
@@ -159,28 +174,20 @@ class DeepNeuralNetwork:
         return predictedMask
 
 
-# Global Definitions
-model_path = 'unet_model.pth'
-data_path = 'Kaggle/'
+if __name__ == '__main__':
 
-# Augmentation
-testtransform = A.Compose([
-    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    ToTensorV2()
-])
+    # Define datasets
+    train_dataset = LaneDetectionDataset(data_path, val=False, transforms=testtransform)
+    val_dataset = LaneDetectionDataset(data_path, val=True, transforms=testtransform)
 
-# Define datasets
-train_dataset = LaneDetectionDataset(data_path, val=False, transforms=testtransform)
-val_dataset = LaneDetectionDataset(data_path, val=True, transforms=testtransform)
+    best = True
+    if best:
+        model = CNNLineDetector(from_scratch=not best)
+    else:
+        model = CNNLineDetector(from_scratch=not best)
+        model.setTrainingParams()
+        model.train(num_epochs=2, save=True)
 
-best = True
-if best:
-    model = DeepNeuralNetwork(from_scratch=not best)
-else:
-    model = DeepNeuralNetwork(from_scratch=not best)
-    model.setTrainingParams()
-    model.train(num_epochs=2, save=True)
-
-showDataset(num_imgs=4, dataset=val_dataset, model=model)
+    showDataset(num_imgs=4, dataset=val_dataset, model=model)
 
 
