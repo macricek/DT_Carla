@@ -26,6 +26,7 @@ from torch.utils.data import Dataset, DataLoader
 #import torchvision.transforms as T
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(device)
 torch.cuda.empty_cache()
 # Augmentation
 testtransform = A.Compose([
@@ -37,14 +38,6 @@ testtransform = A.Compose([
 
 model_path = 'unet_model.pth'
 data_path = 'Kaggle/'
-
-
-def timeSince(since):
-    now = time.time()
-    s = now - since
-    m = math.floor(s / 60)
-    s -= m * 60
-    return '%dm %ds' % (m, s)
 
 
 def sample(dataset, num_samples):
@@ -143,7 +136,6 @@ class CNNLineDetector:
         self.train_epoch = smp.utils.train.TrainEpoch(
             self.model,
             loss=self.loss,
-            metrics=[],
             optimizer=self.optimizer,
             device=device,
             verbose=True
@@ -152,7 +144,6 @@ class CNNLineDetector:
         self.val_epoch = smp.utils.train.ValidEpoch(
             self.model,
             loss=self.loss,
-            metrics=[],
             device=device,
             verbose=True
         )

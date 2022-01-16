@@ -307,21 +307,23 @@ class Camera(Sensor):
         i = np.array(image.raw_data)
         i2 = i.reshape((self._camHeight, self._camWidth, 4))
         self.image = i2[:, :, :3]
-        if self.type.startswith('R'):
-            self.predict()
+        #if self.type.startswith('R'):
+            #self.predict()
 
     def predict(self):
         shapeIm = np.shape(self.image)
         torchImage, _ = transformImage(image=self.image, transformation=LineDetection.testtransform, mask=np.empty(shapeIm))
         nnMask = self.lineDetector().predict(torchImage)
-        self.detectedLines = nnMask.cpu()
+        detectedLines = nnMask.cpu().numpy().transpose(1, 2, 0)
+        return detectedLines
 
     def isImageAvailable(self):
         return self.image is not None
 
     def draw(self):
         cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.type), self.image)
-        cv2.imshow("Lines", self.detectedLines.permute(1, 2, 0))
+        #cv2.imshow("Lines", self.detectedLines)
+        #self.predict()
         cv2.waitKey(1)
 
 
