@@ -5,12 +5,32 @@ import cv2
 from LineDetection import CNNLineDetector, transformImage
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-
+import matplotlib.pyplot as plt
+import time
 
 def lineD():
-    im = cv2.imread("Kaggle/val/Town04_Clear_Noon_09_09_2020_14_57_22_frame_1_validation_set.png")
+    im = cv2.imread("_out/00048254.png")
     shapeIm = np.shape(im)
-    transformedImage = transformImage(im, LineDetection.testtransform, np.empty(shapeIm))
+    transformedImage,_ = transformImage(im, LineDetection.testtransform, np.empty(shapeIm))
+    cnnD = CNNLineDetector(False, dataPath=LineDetection.data_path)
+    start = time.time()
+    mask = cnnD.predict(transformedImage.squeeze())
+    im1 = mask.cpu()
+    end = time.time()
+    s = end - start
+    print(s)
+    vis = im1.numpy()
+    shapee = np.shape(vis)
+    vis2 = np.reshape(vis, (shapee[0], shapee[1], 1))
+    vis2 = vis2.astype('uint8')
+    norm = np.linalg.norm(vis2)
+    normal_array = vis2 / norm
+    vis2 = normal_array * 255
+    cv2.imshow("Image", vis2)
+    cv2.waitKey()
+    #fig, axs = plt.subplots(1, 1, figsize=(10, 5 * 1))
+    #axs.imshow(im1)
+    #plt.show()
 
 
 def main():
@@ -25,5 +45,5 @@ def main():
 
 
 if __name__ == '__main__':
-    #lineD()
-    main()
+    lineD()
+    #main()
