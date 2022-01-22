@@ -9,6 +9,9 @@ import cv2
 import math
 from carla import ColorConverter as cc
 
+import LineDetection
+from LineDetection import CNNLineDetector, transformImage
+
 # from Carla doc
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -35,6 +38,7 @@ class CarlaEnvironment:
     world = None
     blueprints = None
     model = None
+    cnnLineDetector = None
 
     def __init__(self, numVehicles, debug=False):
         self.id = 0
@@ -42,6 +46,7 @@ class CarlaEnvironment:
         self.client = carla.Client('localhost', 2000)
         self.client.set_timeout(4.0)
         self.world = self.client.get_world()
+        self.cnnLineDetector = CNNLineDetector(from_scratch=False, dataPath=LineDetection.data_path)
         if self.editEnvironment:
             self.setSimulation()
 
@@ -108,8 +113,8 @@ class Vehicle(threading.Thread):
     me = None #ref to vehicle
     environment = None #ref to environment upper
 
-    camHeight = 800
-    camWidth = 600
+    camHeight = 512
+    camWidth = 1024
 
     #states of vehicle
     location = None
@@ -170,13 +175,13 @@ class Vehicle(threading.Thread):
     def setupSensors(self):
         self.environment.allFeatures.append(self.me)
         self.__rgb = Camera(self, self.camHeight, self.camWidth)
-        self.__seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
+        #self.__seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
         self.__collision = CollisionSensor(self)
         #self.__radar = RadarSensor(self, True)
         #self.__lidar = LidarSensor(self)
         self.__obstacleDetector = ObstacleDetector(self)
         self.sensors.append(self.__rgb)
-        self.sensors.append(self.__seg)
+        #self.sensors.append(self.__seg)
         self.sensors.append(self.__collision)
         #self.sensors.append(self.__radar)
         #self.sensors.append(self.__lidar)
@@ -235,6 +240,9 @@ class Sensor(object):
     def world(self):
         return self.vehicle.environment.world
 
+    def lineDetector(self):
+        return self.vehicle.environment.cnnLineDetector
+
     def destroy(self):
         if self.sensor is not None:
             try:
@@ -271,6 +279,7 @@ class Camera(Sensor):
     _camHeight = None
     _camWidth = None
     image = None
+    detectedLines = None
 
     options = {
         'RGB': ['sensor.camera.rgb', cc.Raw],
@@ -298,14 +307,23 @@ class Camera(Sensor):
         i = np.array(image.raw_data)
         i2 = i.reshape((self._camHeight, self._camWidth, 4))
         self.image = i2[:, :, :3]
-        if self.type.startswith('S'):
-            image.save_to_disk('_out/%08d' % image.frame)
+        #if self.type.startswith('R'):
+            #self.predict()
+
+    def predict(self):
+        shapeIm = np.shape(self.image)
+        torchImage, _ = transformImage(image=self.image, transformation=LineDetection.testtransform, mask=np.empty(shapeIm))
+        nnMask = self.lineDetector().predict(torchImage)
+        detectedLines = nnMask.cpu().numpy().transpose(1, 2, 0)
+        return detectedLines
 
     def isImageAvailable(self):
         return self.image is not None
 
     def draw(self):
         cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.type), self.image)
+        #cv2.imshow("Lines", self.detectedLines)
+        #self.predict()
         cv2.waitKey(1)
 
 
