@@ -2,9 +2,9 @@ from fastai.vision.all import *
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-import albumentations  as albu
 import os
 import torch
+from SegmentationAlbumentationsTransformation import SegmentationAlbumentationsTransformation
 from fastseg import MobileV3Small
 
 
@@ -30,12 +30,12 @@ if __name__ == '__main__':
     y_valid_dir = os.path.join(DATA_DIR, 'val_label')
 
     my_get_image_files = partial(get_image_files, folders=["train", "val"])
-    codes = np.array(['back', 'left','right'],dtype=str)
+    codes = np.array(['back', 'left', 'right'], dtype=str)
     carla = DataBlock(blocks=(ImageBlock, MaskBlock(codes)),
                     get_items = my_get_image_files,
                     get_y = label_func,
                     splitter = FuncSplitter(lambda x: str(x).find('validation_set') != -1),
-                    item_tfms=None) #[SegmentationAlbumentationsTransform(albu_transform)]
+                    item_tfms=[SegmentationAlbumentationsTransformation()])
 
     dls = carla.dataloaders(Path(DATA_DIR), path=Path("."), bs=2)
     dls.show_batch(max_n=6)
@@ -43,5 +43,5 @@ if __name__ == '__main__':
     model = MobileV3Small(num_classes=3, use_aspp=True, num_filters=8)
     learn = Learner(dls, model, metrics=[DiceMulti()], cbs=ShowGraphCallback())
     learn.fine_tune(10)
-    learn.export('seg.pkl')
-    torch.save(learn.model, './fastai_model.pth')
+    learn.export('seg_aug.pkl')
+    torch.save(learn.model, './fastai_model_aug.pth')

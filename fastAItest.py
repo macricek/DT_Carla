@@ -10,6 +10,10 @@ import torch
 from fastseg import MobileV3Small
 from fastAI import get_image_array_from_fn, label_func
 
+USE_AUG = True
+pathToLearner = "fastAI\\seg.pkl"
+if USE_AUG:
+    pathToLearner.replace("seg", "seg_aug")
 
 def predict(model, img_array):
     print("Start")
@@ -35,7 +39,7 @@ if __name__ == '__main__':
 
     img = cv2.imread(str(get_image_files(x_valid_dir)[3]))
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    learn = load_learner('seg.pkl')
+    learn = load_learner(pathToLearner)
     for i in range(0, 10):
         img = cv2.imread(str(get_image_files(x_valid_dir)[3]))
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
