@@ -16,6 +16,7 @@ def get_image_array_from_fn(fn):
 def label_func(fn):
     return str(fn).replace(".png", "_label.png").replace("train", "train_label").replace("val\\", "val_label\\")
 
+
 if __name__ == '__main__':
     torch.cuda.device(0)
     print(torch.cuda.get_device_name(0))

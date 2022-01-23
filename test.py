@@ -8,17 +8,19 @@ from albumentations.pytorch import ToTensorV2
 import matplotlib.pyplot as plt
 import time
 
+
 def lineD():
-    im = cv2.imread("_out/00048254.png")
-    shapeIm = np.shape(im)
-    transformedImage,_ = transformImage(im, LineDetection.testtransform, np.empty(shapeIm))
     cnnD = CNNLineDetector(False, dataPath=LineDetection.data_path)
-    start = time.time()
-    mask = cnnD.predict(transformedImage.squeeze())
-    im1 = mask.cpu()
-    end = time.time()
-    s = end - start
-    print(s)
+    for i in range (1,10):
+        start = time.time()
+        im = cv2.imread("_out/00048254.png")
+        shapeIm = np.shape(im)
+        transformedImage, _ = transformImage(im, LineDetection.testtransform, np.empty(shapeIm))
+        mask = cnnD.predict(transformedImage.squeeze())
+        im1 = mask.cpu()
+        end = time.time()
+        s = end - start
+        print(s)
     vis = im1.numpy()
     shapee = np.shape(vis)
     vis2 = np.reshape(vis, (shapee[0], shapee[1], 1))
