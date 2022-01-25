@@ -4,7 +4,7 @@ from fastai.vision.all import *
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-import albumentations  as albu
+import albumentations as albu
 import os
 import torch
 from fastseg import MobileV3Small
