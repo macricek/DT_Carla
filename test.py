@@ -55,7 +55,18 @@ def compare(numImages):
         axs[i, 1].imshow(mask)
         axs[i, 2].imshow(maskLineDetector)
         axs[i, 3].imshow(maskFastAI)
+        if i == 0:
+            axs[i, 0].set_title("Image")
+            axs[i, 1].set_title("Mask")
+            axs[i, 2].set_title("ResNet34")
+            axs[i, 3].set_title("FastAI")
+        axs[i, 0].axis('off')
+        axs[i, 1].axis('off')
+        axs[i, 2].axis('off')
+        axs[i, 3].axis('off')
+
     plt.show()
+    fig.savefig('figs\\Compare.png')
 
 
 def main():
