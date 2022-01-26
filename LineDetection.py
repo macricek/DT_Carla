@@ -1,29 +1,12 @@
 import os
-#import glob
-#from pathlib import Path
-import time
-import math
 from random import randint
-#import glob
-#import numpy as np
-#import pandas as pd
 import matplotlib.pyplot as plt
-#import matplotlib.colors as mtc
-#from PIL import Image
-#from tqdm import tqdm
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import cv2
-#from sklearn.model_selection import KFold
-#import seaborn as sns
 import segmentation_models_pytorch as smp
-
 import torch
-#import torch.nn as nn
-#import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-#import torchvision
-#import torchvision.transforms as T
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
