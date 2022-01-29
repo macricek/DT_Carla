@@ -8,6 +8,8 @@ import os
 import matplotlib.pyplot as plt
 import random
 from fastai.vision.all import *
+import sys
+sys.path.insert(0, "fastAI")
 from fastAI import get_image_array_from_fn, label_func
 import time
 
