@@ -12,9 +12,10 @@ from fastseg import MobileV3Small
 from fastAI import get_image_array_from_fn, label_func
 
 USE_AUG = True
-pathToLearner = "fastAI\\seg.pkl"
+pathToLearner = "seg.pkl"
 if USE_AUG:
     pathToLearner.replace("seg", "seg_aug")
+
 
 def predict(model, img_array):
     print("Start")
@@ -31,7 +32,7 @@ def predict(model, img_array):
 
 if __name__ == '__main__':
     torch.cuda.device(0)
-    DATA_DIR = "Kaggle/"
+    DATA_DIR = "../Kaggle/"
     x_train_dir = os.path.join(DATA_DIR, 'train')
     y_train_dir = os.path.join(DATA_DIR, 'train_label')
 

@@ -21,7 +21,7 @@ if __name__ == '__main__':
     torch.cuda.device(0)
     print(torch.cuda.get_device_name(0))
 
-    DATA_DIR = "Kaggle/"
+    DATA_DIR = "../Kaggle/"
 
     x_train_dir = os.path.join(DATA_DIR, 'train')
     y_train_dir = os.path.join(DATA_DIR, 'train_label')
@@ -39,7 +39,7 @@ if __name__ == '__main__':
 
     dls = carla.dataloaders(Path(DATA_DIR), path=Path("."), bs=2)
     dls.show_batch(max_n=6)
-
+    plt.show()
     model = MobileV3Small(num_classes=3, use_aspp=True, num_filters=8)
     learn = Learner(dls, model, metrics=[DiceMulti()], cbs=ShowGraphCallback())
     learn.fine_tune(10)
