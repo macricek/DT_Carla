@@ -53,7 +53,6 @@ print(end - start)
 
 def main():
     cc = CarlaEnvironment(1, False)
-    cc.__del__()
 
 
 if __name__ == '__main__':

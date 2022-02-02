@@ -1,0 +1,3 @@
+[CARLA]
+map=Town04
+weather=carla.WeatherParameters.ClearNoon
