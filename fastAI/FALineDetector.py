@@ -17,18 +17,22 @@ class FALineDetector:
     right: ndarray
     mask: ndarray
 
-    def __init__(self, aug=True, learner=False):
-        self.importModels(aug)
+    def __init__(self, aug=True, learner=False, isMain=False):
+        self.importModels(aug, isMain)
         self.useLearner = learner
         self.device = torch.cuda.device(0)
         self.learner = load_learner(self.fastAiModel)
         self.model = self.learner.model.cuda()
         self.time = time.time()
-        self.initLearners()
+        self.initLearners(isMain)
 
-    def importModels(self, aug):
-        self.torchModel = os.path.abspath('fastai_model.pth')
-        self.fastAiModel = os.path.abspath('seg.pkl')
+    def importModels(self, aug, ismain):
+        if ismain:
+            self.torchModel = os.path.abspath('fastai_model.pth')
+            self.fastAiModel = os.path.abspath('seg.pkl')
+        else:
+            self.torchModel = os.path.join('fastAI/fastai_model.pth')
+            self.fastAiModel = os.path.join('fastAI/seg.pkl')
         if aug:
             self.torchModel = self.torchModel.replace("model", "model_aug")
             self.fastAiModel = self.fastAiModel.replace("seg", "seg_aug")
@@ -42,14 +46,16 @@ class FALineDetector:
             x_tensor = torch.from_numpy(image_tensor).to("cuda").unsqueeze(0)
             _, self.left, self.right = F.softmax(self.model.forward(x_tensor), dim=1).cpu().numpy()[0]
 
-    def visualize(self):
-        actImage = self.image
+    def integrateLines(self):
         if self.useLearner:
-            actImage[self.model > 0.1, :] = [0, 255, 0]  # use green separators
+            self.image[self.model > 0.1, :] = [0, 255, 0]  # use green separators
         else:
-            actImage[self.left > 0.1, :] = [0, 0, 255]  # blue for left
-            actImage[self.right > 0.1, :] = [255, 0, 0]  # red for right
-        cv2.imshow("Visualization of LineDetection", actImage)
+            self.image[self.left > 0.1, :] = [0, 0, 255]  # blue for left
+            self.image[self.right > 0.1, :] = [255, 0, 0]  # red for right
+
+    def visualize(self):
+        self.integrateLines()
+        cv2.imshow("Visualization of LineDetection", self.image)
         cv2.waitKey(1)
 
     def loadImage(self, path=None, numpyArr=None):
@@ -60,8 +66,8 @@ class FALineDetector:
             self.image = numpyArr
 
     # First detection takes 2-3s so make "fake" on beginning
-    def initLearners(self):
-        self.loadImage(path="im.png")
+    def initLearners(self, isMain):
+        self.loadImage(path="im.png" if isMain else "fastAI/im.png")
         self.predictByLearner() if self.useLearner else self.predict()
 
     def sinceLast(self):
@@ -71,7 +77,7 @@ class FALineDetector:
 
 
 if __name__ == '__main__':
-    fald = FALineDetector(aug=True, learner=False)
+    fald = FALineDetector(aug=True, learner=False, isMain=True)
     d = os.path.join("../Kaggle/val/")
     for file in os.listdir("../Kaggle/val"):
         fileP = os.path.join(d + file)
