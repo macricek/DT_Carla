@@ -83,14 +83,14 @@ def main():
 
 
 if __name__ == '__main__':
-    torch.cuda.device(0)
-    DATA_DIR = "Kaggle/"
-    x_train_dir = os.path.join(DATA_DIR, 'train')
-    y_train_dir = os.path.join(DATA_DIR, 'train_label')
+    #torch.cuda.device(0)
+    #DATA_DIR = "Kaggle/"
+    #x_train_dir = os.path.join(DATA_DIR, 'train')
+    #y_train_dir = os.path.join(DATA_DIR, 'train_label')
 
-    x_valid_dir = os.path.join(DATA_DIR, 'val')
-    y_valid_dir = os.path.join(DATA_DIR, 'val_label')
-    sizeOf = os.listdir(x_valid_dir).__len__()
+    #x_valid_dir = os.path.join(DATA_DIR, 'val')
+    #y_valid_dir = os.path.join(DATA_DIR, 'val_label')
+    #sizeOf = os.listdir(x_valid_dir).__len__()
     #lineD()
-    #main()
-    compare(5)
+    main()
+    #compare(5)
