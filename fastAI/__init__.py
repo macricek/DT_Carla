@@ -1,3 +1,5 @@
+from FALineDetector import FALineDetector
+
 def get_image_array_from_fn():
     pass
 

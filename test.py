@@ -92,5 +92,5 @@ if __name__ == '__main__':
     #y_valid_dir = os.path.join(DATA_DIR, 'val_label')
     #sizeOf = os.listdir(x_valid_dir).__len__()
     #lineD()
+    # #compare(5)
     main()
-    #compare(5)

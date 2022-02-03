@@ -95,10 +95,16 @@ class Camera(Sensor):
         i = np.array(image.raw_data)
         i2 = i.reshape((self.camHeight, self.camWidth, 4))
         self.image = i2[:, :, :3]
-        self.lineDetector().pred
+        if self.type.startswith("R"):
+            self.predict()
 
     def isImageAvailable(self):
         return self.image is not None
+
+    def predict(self):
+        self.lineDetector().loadImage(numpyArr=self.image)
+        self.lineDetector().predict()
+        self.lineDetector().integrateLines()
 
     def draw(self):
         cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.type), self.image)

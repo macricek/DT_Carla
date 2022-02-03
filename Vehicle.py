@@ -5,7 +5,9 @@ import random
 
 import Sensors
 from Sensors import *
-from fastAI import FALineDetector
+import sys
+sys.path.insert(0, "fastAI")
+from FALineDetector import FALineDetector
 
 ## global constants
 MAX_TIME_CAR = 30
