@@ -1,7 +1,13 @@
+import carla
+#from Vehicle import Vehicle
+import math
+import cv2
+import numpy as np
+from carla import ColorConverter as cc
+
 
 class Sensor(object):
     sensor = None
-    vehicle: Vehicle
     debug: bool = False
 
     def __init__(self, vehicle, debug):
@@ -25,14 +31,14 @@ class Sensor(object):
         return self.vehicle.environment.world
 
     def lineDetector(self):
-        return self.vehicle.environment.cnnLineDetector
+        return self.vehicle.fald
 
     def destroy(self):
         if self.sensor is not None:
             try:
                 self.sensor.destroy()
             except:
-                None
+                pass
 
 
 class RadarSensor(Sensor):
@@ -60,8 +66,6 @@ class RadarSensor(Sensor):
 
 
 class Camera(Sensor):
-    _camHeight = None
-    _camWidth = None
     image = None
     detectedLines = None
 
@@ -72,62 +76,52 @@ class Camera(Sensor):
     }
 
     def __init__(self, vehicle, height, width, type='RGB', debug=False):
-        self._camHeight = height
-        self._camWidth = width
+        self.camHeight = height
+        self.camWidth = width
         super().__init__(vehicle, debug)
         self.option = self.options.get(type)
         self.type = type
         camera = super().blueprints().find(self.option[0])
-        camera.set_attribute('image_size_x', f'{self._camWidth}')
-        camera.set_attribute('image_size_y', f'{self._camHeight}')
+        camera.set_attribute('image_size_x', f'{self.camWidth}')
+        camera.set_attribute('image_size_y', f'{self.camHeight}')
         camera.set_attribute('fov', '110')
 
         where = carla.Transform(carla.Location(x=2.5, z=0.7))
         self.setSensor(self.world().spawn_actor(camera, where, attach_to=self.reference()))
-        self.sensor.listen(lambda image: self._cameraCallback(image))
+        self.sensor.listen(lambda image: self.cameraCallback(image))
 
-    def _cameraCallback(self, image):
+    def cameraCallback(self, image):
         image.convert(self.option[1])
         i = np.array(image.raw_data)
-        i2 = i.reshape((self._camHeight, self._camWidth, 4))
+        i2 = i.reshape((self.camHeight, self.camWidth, 4))
         self.image = i2[:, :, :3]
-        #if self.type.startswith('R'):
-            #self.predict()
-
-    def predict(self):
-        shapeIm = np.shape(self.image)
-        torchImage, _ = transformImage(image=self.image, transformation=LineDetection.testtransform, mask=np.empty(shapeIm))
-        nnMask = self.lineDetector().predict(torchImage)
-        detectedLines = nnMask.cpu().numpy().transpose(1, 2, 0)
-        return detectedLines
+        self.lineDetector().pred
 
     def isImageAvailable(self):
         return self.image is not None
 
     def draw(self):
         cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.type), self.image)
-        #cv2.imshow("Lines", self.detectedLines)
-        #self.predict()
         cv2.waitKey(1)
 
 
 class CollisionSensor(Sensor):
-    __collided: bool
+    collided: bool
 
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
-        self.__collided = False
+        self.collided = False
         colsensor = super().blueprints().find('sensor.other.collision')
         where = carla.Transform(carla.Location(x=1.5, z=0.7))
         self.setSensor(self.world().spawn_actor(colsensor, where, attach_to=self.reference()))
         self.sensor.listen(lambda collision: self.processCollison(collision))
 
     def processCollison(self, collision):
-        self.__collided = True
+        self.collided = True
         print("Vehicle {id} collided!".format(id=self.vehicle.threadID))
 
     def isCollided(self):
-        return self.__collided
+        return self.collided
 
 
 class ObstacleDetector(Sensor):

@@ -1,16 +1,9 @@
 import glob
-import threading
 import os
 import sys
-import random
 import time
-import numpy as np
-import cv2
-import math
-from carla import ColorConverter as cc
-
-import LineDetection
-from LineDetection import CNNLineDetector, transformImage
+from Vehicle import Vehicle
+from CarlaConfig import CarlaConfig
 
 # from Carla doc
 try:
@@ -24,31 +17,30 @@ import carla
 
 
 class CarlaEnvironment:
-    debug = True
-    editEnvironment = False
+    debug: bool
+    config: CarlaConfig
     # lists
     vehicles = []
     allFeatures = []
     maxId = 50
-    #members
-    client = None
-    world = None
-    blueprints = None
-    model = None
-    cnnLineDetector = None
+    # members
+    client = carla.Client
+    world = carla.World
+    blueprints = carla.BlueprintLibrary
 
     def __init__(self, numVehicles, debug=False):
         self.id = 0
         self.debug = debug
+
         self.client = carla.Client('localhost', 2000)
-        self.client.set_timeout(4.0)
+        self.client.set_timeout(10)
+
+        self.config = CarlaConfig(self.client)
+        self.config.apply()
+
         self.world = self.client.get_world()
-        self.cnnLineDetector = CNNLineDetector(from_scratch=False, dataPath=LineDetection.data_path)
-        if self.editEnvironment:
-            self.setSimulation()
 
         self.blueprints = self.world.get_blueprint_library()
-        self.model = self.blueprints.filter('model3')[0]
         self.map = self.world.get_map()
         self.spawnVehicles(numVehicles)
         self.startThreads()
@@ -62,18 +54,6 @@ class CarlaEnvironment:
             self.allFeatures.append(vehicle)
             self.id += 1
             time.sleep(1)
-
-    def setSimulation(self):
-        self.world.unload_map_layer(carla.MapLayer.All) #make map easier
-        self.world.load_map_layer(carla.MapLayer.Walls)
-        self.originalSettings = self.world.get_settings()
-        settings = self.world.get_settings()
-        settings.fixed_delta_seconds = 0.05
-        self.world.apply_settings(settings)
-
-    def stopSimulation(self):
-        self.world.load_map_layer(carla.MapLayer.All)
-        self.world.apply_settings(self.originalSettings)
 
     def startThreads(self):
         for vehicle in self.vehicles:

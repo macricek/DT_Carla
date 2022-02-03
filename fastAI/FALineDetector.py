@@ -45,10 +45,10 @@ class FALineDetector:
     def visualize(self):
         actImage = self.image
         if self.useLearner:
-            actImage[self.model > 0.3, :] = [0, 255, 0]  # use green separators
+            actImage[self.model > 0.1, :] = [0, 255, 0]  # use green separators
         else:
-            actImage[self.left > 0.3, :] = [0, 0, 255]  # blue for left
-            actImage[self.right > 0.3, :] = [255, 0, 0]  # red for right
+            actImage[self.left > 0.1, :] = [0, 0, 255]  # blue for left
+            actImage[self.right > 0.1, :] = [255, 0, 0]  # red for right
         cv2.imshow("Visualization of LineDetection", actImage)
         cv2.waitKey(1)
 

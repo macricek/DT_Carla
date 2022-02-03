@@ -5,14 +5,14 @@ import random
 
 import Sensors
 from Sensors import *
-from CarlaEnvironment import CarlaEnvironment
+from fastAI import FALineDetector
+
 ## global constants
 MAX_TIME_CAR = 30
 
 
 class Vehicle(threading.Thread):
-    me = carla.Vehicle                           #ref to vehicle
-    environment: CarlaEnvironment       #ref to environment upper
+    me = carla.Vehicle                           #ref to vehicler
 
     camHeight = 512
     camWidth = 1024
@@ -34,7 +34,6 @@ class Vehicle(threading.Thread):
     #other
     debug: bool
 
-
     sensors = []
 
     def __init__(self, environment, spawnLocation, id):
@@ -42,7 +41,8 @@ class Vehicle(threading.Thread):
         self.threadID = id  # threadOBJ
         self.environment = environment
         self.debug = self.environment.debug
-        self.me = self.environment.world.spawn_actor(self.environment.model, spawnLocation)
+        self.fald = FALineDetector()
+        self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
         self.setupSensors()
         self.processMeasures()
         if self.debug:
@@ -56,7 +56,7 @@ class Vehicle(threading.Thread):
             steer = random.uniform(-1, 1)
             throttle = random.uniform(0, 1)
             try:
-                self.controlVehicle(throttle=throttle, steer=steer)
+                self.controlVehicle(throttle=throttle)
                 self.processMeasures()
                 if self.debug and self.rgb.isImageAvailable():
                     self.rgb.draw()
@@ -80,15 +80,15 @@ class Vehicle(threading.Thread):
     def setupSensors(self):
         self.environment.allFeatures.append(self.me)
         self.rgb = Camera(self, self.camHeight, self.camWidth)
-        #self.__seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
+        #self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
         self.collision = CollisionSensor(self)
-        #self.__radar = RadarSensor(self, True)
+        #self.radar = RadarSensor(self, True)
         #self.lidar = LidarSensor(self)
         self.obstacleDetector = ObstacleDetector(self)
         self.sensors.append(self.rgb)
-        #self.sensors.append(self.__seg)
+        #self.sensors.append(self.seg)
         self.sensors.append(self.collision)
-        #self.sensors.append(self.__radar)
+        #self.sensors.append(self.radar)
         #self.sensors.append(self.lidar)
         self.sensors.append(self.obstacleDetector)
         self.environment.allFeatures.extend(self.sensors)
