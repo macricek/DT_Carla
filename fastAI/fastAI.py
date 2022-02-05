@@ -32,10 +32,10 @@ if __name__ == '__main__':
     my_get_image_files = partial(get_image_files, folders=["train", "val"])
     codes = np.array(['back', 'left', 'right'], dtype=str)
     carla = DataBlock(blocks=(ImageBlock, MaskBlock(codes)),
-                    get_items = my_get_image_files,
-                    get_y = label_func,
-                    splitter = FuncSplitter(lambda x: str(x).find('validation_set') != -1),
-                    item_tfms=[SegmentationAlbumentationsTransformation()])
+                      get_items=my_get_image_files,
+                      get_y=label_func,
+                      splitter=FuncSplitter(lambda x: str(x).find('validation_set') != -1),
+                      item_tfms=[SegmentationAlbumentationsTransformation()])
 
     dls = carla.dataloaders(Path(DATA_DIR), path=Path("."), bs=2)
     dls.show_batch(max_n=6)

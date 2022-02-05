@@ -1,3 +1,8 @@
 [CARLA]
 map=Town04
 weather=carla.WeatherParameters.ClearNoon
+ts=0.2
+
+[Camera]
+WIDTH=1024
+HEIGHT=512

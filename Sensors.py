@@ -1,13 +1,10 @@
 import carla
-#from Vehicle import Vehicle
 import math
 import cv2
 import numpy as np
 from carla import ColorConverter as cc
 
-
 class Sensor(object):
-    sensor = None
     debug: bool = False
 
     def __init__(self, vehicle, debug):
@@ -32,6 +29,9 @@ class Sensor(object):
 
     def lineDetector(self):
         return self.vehicle.fald
+
+    def config(self):
+        return self.vehicle.environment.config
 
     def destroy(self):
         if self.sensor is not None:
@@ -62,54 +62,63 @@ class RadarSensor(Sensor):
             dist = detect.depth
             if self.debug:
                 print("Dist to {i}: {d}, Azimuth: {a}, Altitude: {al}".format(i=i, d=dist, a=azi, al=alt))
-                i+=1
+                i += 1
 
 
 class Camera(Sensor):
-    image = None
-    detectedLines = None
+    name: str
 
     options = {
         'RGB': ['sensor.camera.rgb', cc.Raw],
         'Depth': ['sensor.camera.depth', cc.LogarithmicDepth],
-        'Semantic Segmentation': ['sensor.camera.semantic_segmentation', cc.CityScapesPalette]
+        'Semantic Segmentation': ['sensor.camera.semantic_segmentation', cc.CityScapesPalette],
+        'LineDetection': ['sensor.camera.rgb', cc.Raw]
     }
 
-    def __init__(self, vehicle, height, width, type='RGB', debug=False):
-        self.camHeight = height
-        self.camWidth = width
+    def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
-        self.option = self.options.get(type)
-        self.type = type
-        camera = super().blueprints().find(self.option[0])
+        d = self.config().readSection('Camera')
+        self.camHeight = d["height"]
+        self.camWidth = d["width"]
+        self.image = None
+        self.name = 'RGB'
+
+    def create(self):
+        typeOfCamera = self.options.get(self.name)[0]
+        camera = super().blueprints().find(typeOfCamera)
         camera.set_attribute('image_size_x', f'{self.camWidth}')
         camera.set_attribute('image_size_y', f'{self.camHeight}')
         camera.set_attribute('fov', '110')
-
         where = carla.Transform(carla.Location(x=2.5, z=0.7))
         self.setSensor(self.world().spawn_actor(camera, where, attach_to=self.reference()))
         self.sensor.listen(lambda image: self.cameraCallback(image))
 
     def cameraCallback(self, image):
-        image.convert(self.option[1])
         i = np.array(image.raw_data)
         i2 = i.reshape((self.camHeight, self.camWidth, 4))
         self.image = i2[:, :, :3]
-        if self.type.startswith("R"):
-            self.predict()
+        self.image.convert(self.options.get(self.name)[1])
 
-    def isImageAvailable(self):
-        return self.image is not None
+    def draw(self):
+        cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), self.image)
+        cv2.waitKey(1)
+
+
+class LineDetectorCamera(Camera):
+    def __init__(self, vehicle, debug=False):
+        super(LineDetectorCamera, self).__init__(vehicle, debug)
+        self.key = 'LineDetection'
 
     def predict(self):
         self.lineDetector().loadImage(numpyArr=self.image)
         self.lineDetector().predict()
         self.lineDetector().integrateLines()
 
-    def draw(self):
-        cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.type), self.image)
-        cv2.waitKey(1)
-
+    def cameraCallback(self, image):
+        image.convert(self.options.get())
+        super().cameraCallback(image)
+        self.predict()
+        self.draw()
 
 class CollisionSensor(Sensor):
     collided: bool

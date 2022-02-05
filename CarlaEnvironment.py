@@ -22,7 +22,7 @@ class CarlaEnvironment:
     # lists
     vehicles = []
     allFeatures = []
-    maxId = 50
+    maxId = 5
     # members
     client = carla.Client
     world = carla.World
@@ -33,11 +33,8 @@ class CarlaEnvironment:
         self.debug = debug
 
         self.client = carla.Client('localhost', 2000)
-        self.client.set_timeout(30)
-
         self.config = CarlaConfig(self.client)
-        self.config.apply()
-        self.client.set_timeout(10)
+
         self.world = self.client.get_world()
 
         self.blueprints = self.world.get_blueprint_library()
@@ -48,7 +45,7 @@ class CarlaEnvironment:
     def spawnVehicles(self, numVehicles):
         for i in range(0, numVehicles):
             spawnPoints = self.map.get_spawn_points()
-            start = spawnPoints[self.id]
+            start = spawnPoints[self.id+100]
             vehicle = Vehicle(self, start, id=self.id)
             self.vehicles.append(vehicle)
             self.allFeatures.append(vehicle)

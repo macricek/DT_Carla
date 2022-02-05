@@ -3,37 +3,35 @@ import carla
 import time
 import random
 
-import Sensors
 from Sensors import *
 import sys
+
 sys.path.insert(0, "fastAI")
 from FALineDetector import FALineDetector
 
 ## global constants
 MAX_TIME_CAR = 30
-
+CAM_HEIGHT = 512
+CAM_WIDTH = 1024
 
 class Vehicle(threading.Thread):
-    me = carla.Vehicle                           #ref to vehicler
+    me = carla.Vehicle  # ref to vehicle
 
-    camHeight = 512
-    camWidth = 1024
-
-    #states of vehicle
+    # states of vehicle
     location = None
     velocity = None
 
-    #camera
-    rgb = Sensors.Camera
-    seg = Sensors.Camera
+    # camera
+    ldCam: LineDetectorCamera
+    seg = Camera
 
-    #sensor
-    collision = Sensors.CollisionSensor
-    lidar = Sensors.LidarSensor
-    radar = Sensors.RadarSensor
-    obstacleDetector = Sensors.ObstacleDetector
+    # sensor
+    collision: CollisionSensor
+    lidar: LidarSensor
+    radar: RadarSensor
+    obstacleDetector: ObstacleDetector
 
-    #other
+    # other
     debug: bool
 
     sensors = []
@@ -53,45 +51,38 @@ class Vehicle(threading.Thread):
     def run(self):
         start = time.time()
         now = time.time()
-        while now - start < MAX_TIME_CAR and not self.isCollided() and self.me:
-            #there it will NN decide
+        while now - start < MAX_TIME_CAR and not self.collision.isCollided() and self.me:
+            # there it will NN decide
             steer = random.uniform(-1, 1)
             throttle = random.uniform(0, 1)
-            try:
-                self.controlVehicle(throttle=throttle)
-                self.processMeasures()
-                if self.debug and self.rgb.isImageAvailable():
-                    self.rgb.draw()
-                if self.debug and self.seg.isImageAvailable():
-                    self.seg.draw()
-                time.sleep(0.05)
-                now = time.time()
-            except:
-                None
+            #try:
+            self.controlVehicle(throttle=throttle)
+            self.processMeasures()
+            now = time.time()
+            #except:
+                #print("Run failed!")
+                #pass
         self.destroy()
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
         if self.debug:
             print("{id}:[Control] T: {th}, S: {st}, B: {b}".format(id=self.threadID, th=throttle, st=steer, b=brake))
         self.me.apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake,
-                                                        hand_brake=hand_brake, reverse=reverse))
-
-    def isCollided(self):
-        return self.collision.isCollided()
+                                                   hand_brake=hand_brake, reverse=reverse))
 
     def setupSensors(self):
         self.environment.allFeatures.append(self.me)
-        self.rgb = Camera(self, self.camHeight, self.camWidth)
-        #self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
+        self.ldCam = LineDetectorCamera(self)
+        # self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
         self.collision = CollisionSensor(self)
-        #self.radar = RadarSensor(self, True)
-        #self.lidar = LidarSensor(self)
+        # self.radar = RadarSensor(self, True)
+        # self.lidar = LidarSensor(self)
         self.obstacleDetector = ObstacleDetector(self)
-        self.sensors.append(self.rgb)
-        #self.sensors.append(self.seg)
+        self.sensors.append(self.ldCam)
+        # self.sensors.append(self.seg)
         self.sensors.append(self.collision)
-        #self.sensors.append(self.radar)
-        #self.sensors.append(self.lidar)
+        # self.sensors.append(self.radar)
+        # self.sensors.append(self.lidar)
         self.sensors.append(self.obstacleDetector)
         self.environment.allFeatures.extend(self.sensors)
 
