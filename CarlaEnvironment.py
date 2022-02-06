@@ -79,3 +79,7 @@ class CarlaEnvironment:
                 print("Removing utility!")
             except:
                 print("Already deleted!")
+
+    def __del__(self):
+        print("Turning off sync mode")
+        self.config.turnOffSync()

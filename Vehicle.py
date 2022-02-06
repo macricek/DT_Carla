@@ -51,17 +51,13 @@ class Vehicle(threading.Thread):
     def run(self):
         start = time.time()
         now = time.time()
-        while now - start < MAX_TIME_CAR and not self.collision.isCollided() and self.me:
+        while self.me and now - start < MAX_TIME_CAR and not self.collision.isCollided():
             # there it will NN decide
             steer = random.uniform(-1, 1)
             throttle = random.uniform(0, 1)
-            #try:
             self.controlVehicle(throttle=throttle)
             self.processMeasures()
             now = time.time()
-            #except:
-                #print("Run failed!")
-                #pass
         self.destroy()
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
