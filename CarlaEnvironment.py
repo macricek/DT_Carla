@@ -41,6 +41,13 @@ class CarlaEnvironment:
         self.map = self.world.get_map()
         self.spawnVehicles(numVehicles)
         self.startThreads()
+        time.sleep(2)
+
+
+    def main(self):
+        while 1:
+            if
+            time.sleep(0.05)
 
     def spawnVehicles(self, numVehicles):
         for i in range(0, numVehicles):

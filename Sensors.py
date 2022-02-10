@@ -1,19 +1,20 @@
-import enum
 import carla
 import math
 import cv2
 import numpy as np
 from carla import ColorConverter as cc
 import queue
+from PyQt5 import QtCore
 
 
-class SensorManager(object):
+class SensorManager(QtCore.QObject):
     """
     In case of Sync, we need to manage sensors when server ticks.
     If mode is async, we could simply rely on callbacks.
     """
 
     def __init__(self, vehicle, environment):
+        super().__init__()
         self._queues = []
         self.sensors = []
         self.vehicle = vehicle
@@ -45,32 +46,48 @@ class SensorManager(object):
     def activate(self):
         for sensor in self.sensors:
             sensor.activate()
+            self.count += 1
+            sensor.ready.connect(self.readySensor)
+            self.readySensors += 1
 
     def on_world_tick(self):
         for sensor in self.sensors:
             sensor.on_world_tick()
 
+    def readySensor(self):
+        self.readySensors += 1
+
+    def invokeTick(self):
+        ready = True
+        for sensor in self.sensors:
+            ready &= sensor.ready
+        return ready
+
     def isCollided(self):
         return self.collision.isCollided()
 
 
-class Sensor(object):
+class Sensor(QtCore.QObject):
     debug: bool = False
-
+    #send signal
+    ready = QtCore.pyqtSignal()
     def __init__(self, vehicle, debug):
+        super(Sensor, self).__init__()
         self.sensor = None
         self.bp = None
         self.where = None
-        self.ready = False
+        #self.ready = False
+        self.queue = queue.Queue()
         self.vehicle = vehicle
         self.debug = debug
 
     def activate(self):
         self.sensor = self.world().spawn_actor(self.bp, self.where, attach_to=self.reference())
-        self.sensor.listen(lambda data: self.callBack(data))
+        self.sensor.listen(lambda data: self.queue.put(data))
 
     def on_world_tick(self):
         self.ready = False
+        self.callBack(self.queue.get())
 
     def callBack(self, data):
         print("Default callback!")
