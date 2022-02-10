@@ -60,6 +60,9 @@ class CarlaConfig:
 if __name__ == '__main__':
     client = carla.Client('localhost', 2000)
     client.set_timeout(10)
-    w = client.get_world()
-    while True:
-        w.tick()
+    conf = CarlaConfig(client)
+    s = conf.readSection("Sensors")
+    print(s)
+    print(s.get("radarsensor"))
+    print(bool(s.get("radarsensor")))
+

@@ -9,8 +9,8 @@ WIDTH=1024
 HEIGHT=512
 
 [Sensors]
-RadarSensor=True
-LineDetectorCamera=True
-CollisionSensor=True
-ObstacleDetector=False
-LidarSensor=False
+radarSensor=True
+lineDetectorCamera=True
+collisionSensor=True
+obstacleDetector=False
+lidarSensor=False

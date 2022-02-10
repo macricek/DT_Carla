@@ -43,7 +43,7 @@ class Vehicle(threading.Thread):
         self.debug = self.environment.debug
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
-        self.setupSensors()
+        self.sensorManager = SensorManager(self, self.environment)
         self.processMeasures()
         if self.debug:
             print("Vehicle {id} starting".format(id=self.threadID))
@@ -51,7 +51,7 @@ class Vehicle(threading.Thread):
     def run(self):
         start = time.time()
         now = time.time()
-        while self.me and now - start < MAX_TIME_CAR and not self.collision.isCollided():
+        while self.me and now - start < MAX_TIME_CAR and not self.sensorManager.isCollided():
             # there it will NN decide
             steer = random.uniform(-1, 1)
             throttle = random.uniform(0, 1)

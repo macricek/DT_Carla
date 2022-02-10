@@ -11,26 +11,47 @@ class SensorManager(object):
     """
     In case of Sync, we need to manage sensors when server ticks.
     If mode is async, we could simply rely on callbacks.
-     def setupSensors(self):
-        self.environment.allFeatures.append(self.me)
-        self.ldCam = LineDetectorCamera(self)
-        # self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
-        self.collision = CollisionSensor(self)
-        # self.radar = RadarSensor(self, True)
-        # self.lidar = LidarSensor(self)
-        self.obstacleDetector = ObstacleDetector(self)
-        self.sensors.append(self.ldCam)
-        # self.sensors.append(self.seg)
-        self.sensors.append(self.collision)
-        # self.sensors.append(self.radar)
-        # self.sensors.append(self.lidar)
-        self.sensors.append(self.obstacleDetector)
-        self.environment.allFeatures.extend(self.sensors)
     """
 
-
-    def __init__(self, *sensors):
+    def __init__(self, vehicle, environment):
         self._queues = []
+        self.sensors = []
+        self.vehicle = vehicle
+        self.config = environment.config
+        self.ldCam = LineDetectorCamera(self.vehicle)
+        #self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
+        self.collision = CollisionSensor(self.vehicle)
+        self.radar = RadarSensor(self.vehicle)
+        self.lidar = LidarSensor(self.vehicle)
+        self.obstacleDetector = ObstacleDetector(self.vehicle)
+
+        self.addToSensorsList()
+        self.activate()
+
+    def addToSensorsList(self):
+        settings: dict
+        settings = self.config.readSection("Sensors")
+        if bool(settings.get("radarsensor")):
+            self.sensors.append(self.radar)
+        if bool(settings.get("linedetectorcamera")):
+            self.sensors.append(self.ldCam)
+        if bool(settings.get("collisionsensor")):
+            self.sensors.append(self.collision)
+        if bool(settings.get("obstacledetector")):
+            self.sensors.append(self.obstacleDetector)
+        if bool(settings.get("lidarsensor")):
+            self.sensors.append(self.lidar)
+
+    def activate(self):
+        for sensor in self.sensors:
+            sensor.activate()
+
+    def on_world_tick(self):
+        for sensor in self.sensors:
+            sensor.on_world_tick()
+
+    def isCollided(self):
+        return self.collision.isCollided()
 
 
 class Sensor(object):
@@ -40,12 +61,16 @@ class Sensor(object):
         self.sensor = None
         self.bp = None
         self.where = None
+        self.ready = False
         self.vehicle = vehicle
         self.debug = debug
 
     def activate(self):
         self.sensor = self.world().spawn_actor(self.bp, self.where, attach_to=self.reference())
         self.sensor.listen(lambda data: self.callBack(data))
+
+    def on_world_tick(self):
+        self.ready = False
 
     def callBack(self, data):
         print("Default callback!")
@@ -153,8 +178,8 @@ class Camera(Sensor):
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
         d = self.config().readSection('Camera')
-        self.camHeight = d["height"]
-        self.camWidth = d["width"]
+        self.camHeight = int(d["height"])
+        self.camWidth = int(d["width"])
         self.image = None
         self.name = 'RGB'
 
@@ -170,7 +195,7 @@ class Camera(Sensor):
         i = np.array(data.raw_data)
         i2 = i.reshape((self.camHeight, self.camWidth, 4))
         self.image = i2[:, :, :3]
-        self.image.convert(self.options.get(self.name)[1])
+        #self.image.convert(self.options.get(self.name)[1])
 
     def draw(self):
         cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), self.image)
@@ -180,7 +205,8 @@ class Camera(Sensor):
 class LineDetectorCamera(Camera):
     def __init__(self, vehicle, debug=False):
         super(LineDetectorCamera, self).__init__(vehicle, debug)
-        self.key = 'LineDetection'
+        self.name = 'LineDetection'
+        self.create()
 
     def predict(self):
         self.lineDetector().loadImage(numpyArr=self.image)
@@ -188,7 +214,6 @@ class LineDetectorCamera(Camera):
         self.lineDetector().integrateLines()
 
     def callBack(self, data):
-        data.convert(self.options.get())
         super().callBack(data)
         self.predict()
         self.draw()
