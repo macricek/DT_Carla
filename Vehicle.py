@@ -2,7 +2,7 @@ import threading
 import carla
 import time
 import random
-
+from PyQt5 import QtCore
 from Sensors import *
 import sys
 
@@ -10,20 +10,21 @@ sys.path.insert(0, "fastAI")
 from FALineDetector import FALineDetector
 
 ## global constants
-MAX_TIME_CAR = 30
+MAX_TIME_CAR = 5
 CAM_HEIGHT = 512
 CAM_WIDTH = 1024
+
 
 class Vehicle(threading.Thread):
     me = carla.Vehicle  # ref to vehicle
 
     # states of vehicle
-    location = None
-    velocity = None
+    location: carla.Vector3D
+    velocity: carla.Vector3D
 
     # camera
     ldCam: LineDetectorCamera
-    seg = Camera
+    seg: Camera
 
     # sensor
     collision: CollisionSensor
@@ -34,8 +35,6 @@ class Vehicle(threading.Thread):
     # other
     debug: bool
 
-    sensors = []
-
     def __init__(self, environment, spawnLocation, id):
         threading.Thread.__init__(self)
         self.threadID = id  # threadOBJ
@@ -43,21 +42,26 @@ class Vehicle(threading.Thread):
         self.debug = self.environment.debug
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
-        self.sensorManager = SensorManager(self, self.environment)
         self.processMeasures()
+        self.sensorManager = SensorManager(self, self.environment)
         if self.debug:
             print("Vehicle {id} starting".format(id=self.threadID))
 
     def run(self):
-        start = time.time()
-        now = time.time()
-        while self.me and now - start < MAX_TIME_CAR and not self.sensorManager.isCollided():
-            # there it will NN decide
+        while self.me and not self.sensorManager.isCollided():
+            # there will NN decide
+            try:  # events that needs TICK
+                # tick will add information to queue of each sensor
+                self.environment.world.wait_for_tick()
+                self.sensorManager.on_world_tick()
+            except RuntimeError:
+                print("Timeout, no tick!")
             steer = random.uniform(-1, 1)
             throttle = random.uniform(0, 1)
             self.controlVehicle(throttle=throttle)
             self.processMeasures()
-            now = time.time()
+
+        self.sensorManager.destroy()
         self.destroy()
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
@@ -102,8 +106,7 @@ class Vehicle(threading.Thread):
         if self.debug:
             print("Destroying Vehicle {id}".format(id=self.threadID))
         try:
-            for actor in self.sensors:
-                actor.destroy()
+            self.sensorManager.destroy()
             self.me.destroy()
         finally:
             self.environment.deleteVehicle(self)

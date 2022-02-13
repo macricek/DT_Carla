@@ -12,11 +12,19 @@ import sys
 sys.path.insert(0, "fastAI")
 from fastAI import get_image_array_from_fn, label_func
 import time
+import signal
+import sys
 
 USE_AUG = True
 pathToLearner = "fastAI\\seg.pkl"
 if USE_AUG:
     pathToLearner.replace("seg", "seg_aug")
+
+
+def signal_handler(sig, frame):
+    print('You pressed Ctrl+C!')
+    sys.exit(0)
+
 
 def lineDetectorPredict(im, cnnD):
     shapeIm = np.shape(im)
@@ -71,26 +79,6 @@ def compare(numImages):
     fig.savefig('figs\\Compare.png')
 
 
-def main():
-    try:
-        cc = CarlaEnvironment(1, True)
-        cc.run()
-
-    finally:
-        print("Invoking deletion of object Environment")
-        cc.deleteAll()
-        del cc
-
-
 if __name__ == '__main__':
-    #torch.cuda.device(0)
-    #DATA_DIR = "Kaggle/"
-    #x_train_dir = os.path.join(DATA_DIR, 'train')
-    #y_train_dir = os.path.join(DATA_DIR, 'train_label')
-
-    #x_valid_dir = os.path.join(DATA_DIR, 'val')
-    #y_valid_dir = os.path.join(DATA_DIR, 'val_label')
-    #sizeOf = os.listdir(x_valid_dir).__len__()
-    #lineD()
-    # #compare(5)
-    main()
+    cc = CarlaEnvironment(1, True)
+    cc.run()

@@ -12,19 +12,22 @@ class SensorManager(QtCore.QObject):
     In case of Sync, we need to manage sensors when server ticks.
     If mode is async, we could simply rely on callbacks.
     """
+    readySignal = QtCore.pyqtSignal()
 
     def __init__(self, vehicle, environment):
         super().__init__()
         self._queues = []
         self.sensors = []
+        self.count = 0
+        self.readySensors = 0
         self.vehicle = vehicle
         self.config = environment.config
-        self.ldCam = LineDetectorCamera(self.vehicle)
-        #self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
-        self.collision = CollisionSensor(self.vehicle)
-        self.radar = RadarSensor(self.vehicle)
-        self.lidar = LidarSensor(self.vehicle)
-        self.obstacleDetector = ObstacleDetector(self.vehicle)
+        self.ldCam = LineDetectorCamera(self.vehicle, True)
+        # self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
+        self.collision = CollisionSensor(self.vehicle, True)
+        self.radar = RadarSensor(self.vehicle, True)
+        self.lidar = LidarSensor(self.vehicle, True)
+        self.obstacleDetector = ObstacleDetector(self.vehicle, True)
 
         self.addToSensorsList()
         self.activate()
@@ -45,10 +48,13 @@ class SensorManager(QtCore.QObject):
 
     def activate(self):
         for sensor in self.sensors:
-            sensor.activate()
+            print(f"Activating {self.count}: {sensor.bp}")
             self.count += 1
+            sensor.activate()
             sensor.ready.connect(self.readySensor)
-            self.readySensors += 1
+
+        for sensor in self.sensors:
+            sensor.ready.emit()  # FAKE EMIT to start the simulation
 
     def on_world_tick(self):
         for sensor in self.sensors:
@@ -56,27 +62,37 @@ class SensorManager(QtCore.QObject):
 
     def readySensor(self):
         self.readySensors += 1
+        print(f"Got signal ready from {self.readySensors}/{self.count}")
+        self.checkForPossibleInvoke()
 
-    def invokeTick(self):
-        ready = True
-        for sensor in self.sensors:
-            ready &= sensor.ready
-        return ready
+    def checkForPossibleInvoke(self):
+        if self.readySensors == self.count:
+            print("All sensors ready")
+            self.readySensors = 0
+            self.readySignal.emit()
 
     def isCollided(self):
         return self.collision.isCollided()
 
+    def destroy(self):
+        print(f"Invoking deletion of sensors of {self.vehicle.threadID} vehicle!")
+        for sensor in self.sensors:
+            print(f"Deleting sensor {sensor.bp}")
+            sensor.destroy()
+
 
 class Sensor(QtCore.QObject):
     debug: bool = False
-    #send signal
+    # send signal
     ready = QtCore.pyqtSignal()
+
     def __init__(self, vehicle, debug):
         super(Sensor, self).__init__()
         self.sensor = None
         self.bp = None
         self.where = None
-        #self.ready = False
+        self.name = "Sensor"
+        # self.ready = False
         self.queue = queue.Queue()
         self.vehicle = vehicle
         self.debug = debug
@@ -86,11 +102,17 @@ class Sensor(QtCore.QObject):
         self.sensor.listen(lambda data: self.queue.put(data))
 
     def on_world_tick(self):
-        self.ready = False
-        self.callBack(self.queue.get())
+        print(f"[{self.name}] on world tick")
+        if self.queue.qsize() == 0:
+            print(f"Empty data queue for sensor {self.name}")
+        else:
+            self.callBack(self.queue.get())
+        self.ready.emit()
 
     def callBack(self, data):
-        print("Default callback!")
+        if self.debug:
+            print("Emitting ready!")
+        self.ready.emit()
 
     def reference(self):
         return self.vehicle.ref()
@@ -122,6 +144,7 @@ class RadarSensor(Sensor):
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
         self.velocity_range = 7.5
+        self.name = "Radar"
         self.bp = self.blueprints().find('sensor.other.radar')
         self.bp.set_attribute('horizontal_fov', str(35))
         self.bp.set_attribute('vertical_fov', str(20))
@@ -137,6 +160,7 @@ class RadarSensor(Sensor):
             if self.debug:
                 print("Dist to {i}: {d}, Azimuth: {a}, Altitude: {al}".format(i=i, d=dist, a=azi, al=alt))
                 i += 1
+        super(RadarSensor, self).callBack(data)
 
 
 class CollisionSensor(Sensor):
@@ -144,6 +168,7 @@ class CollisionSensor(Sensor):
 
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
+        self.name = "Collision"
         self.collided = False
         self.bp = super().blueprints().find('sensor.other.collision')
         self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
@@ -151,6 +176,7 @@ class CollisionSensor(Sensor):
     def callBack(self, data):
         self.collided = True
         print("Vehicle {id} collided!".format(id=self.vehicle.threadID))
+        super(CollisionSensor, self).callBack(data)
 
     def isCollided(self):
         return self.collided
@@ -159,17 +185,20 @@ class CollisionSensor(Sensor):
 class ObstacleDetector(Sensor):
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
+        self.name = "Obstacle"
         self.bp = super().blueprints().find('sensor.other.obstacle')
         self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
     def callBack(self, data):
         distance = data.distance
         print("{distance}".format(distance=distance))
+        super(ObstacleDetector, self).callBack(data)
 
 
 class LidarSensor(Sensor):
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
+        self.name = "Lidar"
         self.bp = super().blueprints().find('sensor.lidar.ray_cast')
         self.bp.channels = 1
         self.where = carla.Transform(carla.Location(x=0, z=0))
@@ -180,6 +209,7 @@ class LidarSensor(Sensor):
             for location in data:
                 print("{num}: {location}".format(num=number, location=location))
                 number += 1
+        super(LidarSensor, self).callBack(data)
 
 
 class Camera(Sensor):
@@ -212,7 +242,7 @@ class Camera(Sensor):
         i = np.array(data.raw_data)
         i2 = i.reshape((self.camHeight, self.camWidth, 4))
         self.image = i2[:, :, :3]
-        #self.image.convert(self.options.get(self.name)[1])
+        # self.image.convert(self.options.get(self.name)[1])
 
     def draw(self):
         cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), self.image)
@@ -234,3 +264,4 @@ class LineDetectorCamera(Camera):
         super().callBack(data)
         self.predict()
         self.draw()
+        super(Camera, self).callBack(data)
