@@ -22,13 +22,15 @@ class SensorManager(QtCore.QObject):
         self.readySensors = 0
         self.vehicle = vehicle
         self.config = environment.config
-        self.ldCam = LineDetectorCamera(self.vehicle, True)
+        self.ldCam = LineDetectorCamera(self.vehicle, False)
         # self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
-        self.collision = CollisionSensor(self.vehicle, True)
-        self.radar = RadarSensor(self.vehicle, True)
-        self.lidar = LidarSensor(self.vehicle, True)
-        self.obstacleDetector = ObstacleDetector(self.vehicle, True)
-
+        self.collision = CollisionSensor(self.vehicle, False)
+        self.radar = RadarSensor(self.vehicle, False)
+        self.lidar = LidarSensor(self.vehicle, False)
+        self.obstacleDetector = ObstacleDetector(self.vehicle, False)
+        #self.t = QtCore.QTimer()
+        #self.t.setSingleShot(True)
+        #self.t.timeout.connect(self.emitik)
         self.addToSensorsList()
         self.activate()
 
@@ -52,13 +54,18 @@ class SensorManager(QtCore.QObject):
             self.count += 1
             sensor.activate()
             sensor.ready.connect(self.readySensor)
+        #self.t.start(1000)
+        self.emitik()
 
+    def emitik(self):
+        #print("------------------------------------------------------------"+str(self.t.isActive()))
         for sensor in self.sensors:
-            sensor.ready.emit()  # FAKE EMIT to start the simulation
+            sensor.ready.emit()
 
     def on_world_tick(self):
         for sensor in self.sensors:
             sensor.on_world_tick()
+        print("Skoncil som!")
 
     def readySensor(self):
         self.readySensors += 1
@@ -97,6 +104,9 @@ class Sensor(QtCore.QObject):
         self.vehicle = vehicle
         self.debug = debug
 
+    def callBack(self):
+        pass
+
     def activate(self):
         self.sensor = self.world().spawn_actor(self.bp, self.where, attach_to=self.reference())
         self.sensor.listen(lambda data: self.queue.put(data))
@@ -107,11 +117,7 @@ class Sensor(QtCore.QObject):
             print(f"Empty data queue for sensor {self.name}")
         else:
             self.callBack(self.queue.get())
-        self.ready.emit()
-
-    def callBack(self, data):
-        if self.debug:
-            print("Emitting ready!")
+        print(f"Emitting ready for sensor {self.name}")
         self.ready.emit()
 
     def reference(self):
@@ -160,7 +166,6 @@ class RadarSensor(Sensor):
             if self.debug:
                 print("Dist to {i}: {d}, Azimuth: {a}, Altitude: {al}".format(i=i, d=dist, a=azi, al=alt))
                 i += 1
-        super(RadarSensor, self).callBack(data)
 
 
 class CollisionSensor(Sensor):
@@ -176,7 +181,6 @@ class CollisionSensor(Sensor):
     def callBack(self, data):
         self.collided = True
         print("Vehicle {id} collided!".format(id=self.vehicle.threadID))
-        super(CollisionSensor, self).callBack(data)
 
     def isCollided(self):
         return self.collided
@@ -192,7 +196,6 @@ class ObstacleDetector(Sensor):
     def callBack(self, data):
         distance = data.distance
         print("{distance}".format(distance=distance))
-        super(ObstacleDetector, self).callBack(data)
 
 
 class LidarSensor(Sensor):
@@ -209,7 +212,6 @@ class LidarSensor(Sensor):
             for location in data:
                 print("{num}: {location}".format(num=number, location=location))
                 number += 1
-        super(LidarSensor, self).callBack(data)
 
 
 class Camera(Sensor):
@@ -264,4 +266,3 @@ class LineDetectorCamera(Camera):
         super().callBack(data)
         self.predict()
         self.draw()
-        super(Camera, self).callBack(data)

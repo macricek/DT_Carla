@@ -43,26 +43,37 @@ class Vehicle(threading.Thread):
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
         self.processMeasures()
+        self.noTick = 0
         self.sensorManager = SensorManager(self, self.environment)
         if self.debug:
             print("Vehicle {id} starting".format(id=self.threadID))
 
     def run(self):
-        while self.me and not self.sensorManager.isCollided():
-            # there will NN decide
-            try:  # events that needs TICK
-                # tick will add information to queue of each sensor
-                self.environment.world.wait_for_tick()
-                self.sensorManager.on_world_tick()
-            except RuntimeError:
-                print("Timeout, no tick!")
-            steer = random.uniform(-1, 1)
-            throttle = random.uniform(0, 1)
-            self.controlVehicle(throttle=throttle)
-            self.processMeasures()
+        if not self.me or self.sensorManager.isCollided():
+            print("TERMINATE")
+            self.sensorManager.destroy()
+            self.destroy()
+            self.join()  # terminates thread
 
-        self.sensorManager.destroy()
-        self.destroy()
+        # there will NN decide
+        try:  # events that needs TICK
+            self.environment.world.wait_for_tick()
+            self.sensorManager.on_world_tick()
+
+        except RuntimeError:
+            print("Timeout, no tick!")
+            self.noTick += 1
+            if self.noTick >= 5:
+                print("TERMINATE")
+                self.sensorManager.destroy()
+                self.destroy()
+                self.join()
+        steer = random.uniform(-1, 1)
+        throttle = random.uniform(0, 1)
+        self.controlVehicle(throttle=throttle)
+        #self.processMeasures()
+
+
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
         if self.debug:

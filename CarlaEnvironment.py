@@ -43,21 +43,16 @@ class CarlaEnvironment(QtCore.QObject):
         self.blueprints = self.world.get_blueprint_library()
         self.map = self.world.get_map()
         self.spawnVehicles(numVehicles)
-        self.startThreads()
         print("INIT DONE")
+        self.readyVehicles = self.numVehicles - 1
         self.tick()
-        self.run2()
 
-    def run2(self):
-        a = time.time()
-        while time.time() - a < 10:
-            self.world.tick()
-            time.sleep(0.1)
-
+#TODO: spravim to tak, ze ked ticknem, tak sa spusti thread vehiclu/ov, pocka sa na koniec a tak dokola...
     def tick(self):
         self.readyVehicles += 1
         print(f"Ready vehicles: {self.readyVehicles}/{self.numVehicles}")
         if self.readyVehicles == self.numVehicles:
+            self.startThreads()
             print("TICK!")
             self.world.tick()
             self.readyVehicles = 0
@@ -67,12 +62,12 @@ class CarlaEnvironment(QtCore.QObject):
             spawnPoints = self.map.get_spawn_points()
             start = spawnPoints[int(random.random()*len(spawnPoints))]
             vehicle = Vehicle(self, start, id=self.id)
+            vehicle.sensorManager.readySignal.connect(self.tick)
             self.vehicles.append(vehicle)
             self.id += 1
 
     def startThreads(self):
         for vehicle in self.vehicles:
-            vehicle.sensorManager.readySignal.connect(self.tick)
             vehicle.start()
 
     def run(self):
