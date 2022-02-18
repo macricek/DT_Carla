@@ -5,7 +5,7 @@ import sys
 import time
 from Vehicle import Vehicle
 from CarlaConfig import CarlaConfig
-from PyQt5 import QtCore
+from PyQt5.QtCore import QObject, pyqtSignal, QThread
 
 # from Carla doc
 try:
@@ -18,19 +18,22 @@ except IndexError:
 import carla
 
 
-class CarlaEnvironment(QtCore.QObject):
+class CarlaEnvironment(QObject):
     debug: bool
     config: CarlaConfig
     # lists
     vehicles = []
+    threads = []
     maxId = 5
     # members
     client = carla.Client
     world = carla.World
     blueprints = carla.BlueprintLibrary
+    # PyQt signals
+    done = pyqtSignal()
 
     def __init__(self, numVehicles, debug=False):
-        super().__init__()
+        super(CarlaEnvironment, self).__init__()
         self.id = 0
         self.debug = debug
         self.numVehicles = numVehicles
@@ -47,7 +50,6 @@ class CarlaEnvironment(QtCore.QObject):
         self.readyVehicles = self.numVehicles - 1
         self.tick()
 
-#TODO: spravim to tak, ze ked ticknem, tak sa spusti thread vehiclu/ov, pocka sa na koniec a tak dokola...
     def tick(self):
         self.readyVehicles += 1
         print(f"Ready vehicles: {self.readyVehicles}/{self.numVehicles}")
@@ -62,17 +64,19 @@ class CarlaEnvironment(QtCore.QObject):
             spawnPoints = self.map.get_spawn_points()
             start = spawnPoints[int(random.random()*len(spawnPoints))]
             vehicle = Vehicle(self, start, id=self.id)
-            vehicle.sensorManager.readySignal.connect(self.tick)
+            thread = QThread()
+            vehicle.moveToThread(thread)
+            thread.started.connect(vehicle.run)
+            thread.finished.connect(self.tick)
+            vehicle.finished.connect(thread.quit)
+            self.threads.append(thread)
             self.vehicles.append(vehicle)
             self.id += 1
 
     def startThreads(self):
-        for vehicle in self.vehicles:
-            vehicle.start()
-
-    def run(self):
-        for vehicle in self.vehicles:
-            vehicle.run()
+        print("Starting threads")
+        for thread in self.threads:
+            thread.start()
 
     def deleteVehicle(self, vehicle):
         for v in self.vehicles:
@@ -90,6 +94,7 @@ class CarlaEnvironment(QtCore.QObject):
                 print("Removing vehicle!")
             except:
                 print("Already deleted!")
+        del self.threads
 
     def __del__(self):
         self.deleteAll()

@@ -22,15 +22,12 @@ class SensorManager(QtCore.QObject):
         self.readySensors = 0
         self.vehicle = vehicle
         self.config = environment.config
-        self.ldCam = LineDetectorCamera(self.vehicle, False)
+        self.ldCam = LineDetectorCamera(self, False)
         # self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
-        self.collision = CollisionSensor(self.vehicle, False)
-        self.radar = RadarSensor(self.vehicle, False)
-        self.lidar = LidarSensor(self.vehicle, False)
-        self.obstacleDetector = ObstacleDetector(self.vehicle, False)
-        #self.t = QtCore.QTimer()
-        #self.t.setSingleShot(True)
-        #self.t.timeout.connect(self.emitik)
+        self.collision = CollisionSensor(self, False)
+        self.radar = RadarSensor(self, False)
+        self.lidar = LidarSensor(self, False)
+        self.obstacleDetector = ObstacleDetector(self, False)
         self.addToSensorsList()
         self.activate()
 
@@ -53,19 +50,11 @@ class SensorManager(QtCore.QObject):
             print(f"Activating {self.count}: {sensor.bp}")
             self.count += 1
             sensor.activate()
-            sensor.ready.connect(self.readySensor)
-        #self.t.start(1000)
-        self.emitik()
 
-    def emitik(self):
-        #print("------------------------------------------------------------"+str(self.t.isActive()))
-        for sensor in self.sensors:
-            sensor.ready.emit()
-
-    def on_world_tick(self):
+    def processSensors(self):
         for sensor in self.sensors:
             sensor.on_world_tick()
-        print("Skoncil som!")
+        print("on_world_tick done!")
 
     def readySensor(self):
         self.readySensors += 1
@@ -91,17 +80,17 @@ class SensorManager(QtCore.QObject):
 class Sensor(QtCore.QObject):
     debug: bool = False
     # send signal
-    ready = QtCore.pyqtSignal()
 
-    def __init__(self, vehicle, debug):
+    def __init__(self, manager, debug):
         super(Sensor, self).__init__()
         self.sensor = None
         self.bp = None
         self.where = None
+        self.manager = manager
         self.name = "Sensor"
         # self.ready = False
         self.queue = queue.Queue()
-        self.vehicle = vehicle
+        self.vehicle = manager.vehicle
         self.debug = debug
 
     def callBack(self):
@@ -118,7 +107,6 @@ class Sensor(QtCore.QObject):
         else:
             self.callBack(self.queue.get())
         print(f"Emitting ready for sensor {self.name}")
-        self.ready.emit()
 
     def reference(self):
         return self.vehicle.ref()
@@ -247,8 +235,9 @@ class Camera(Sensor):
         # self.image.convert(self.options.get(self.name)[1])
 
     def draw(self):
-        cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), self.image)
-        cv2.waitKey(1)
+        while not self.manager.isCollided():
+            cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), self.image)
+            cv2.waitKey(10)
 
 
 class LineDetectorCamera(Camera):
@@ -264,5 +253,6 @@ class LineDetectorCamera(Camera):
 
     def callBack(self, data):
         super().callBack(data)
+        print("----------------------------------------------------------------------------------------")
         self.predict()
         self.draw()

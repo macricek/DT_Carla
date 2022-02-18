@@ -79,6 +79,7 @@ def compare(numImages):
     fig.savefig('figs\\Compare.png')
 
 
+
 if __name__ == '__main__':
     cc = CarlaEnvironment(1, True)
     cc.run()
