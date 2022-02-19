@@ -24,6 +24,4 @@ class Main(QCoreApplication):
 
 if __name__ == '__main__':
     mainApp = Main()
-    mainApp.exec()
-    while True:
-        mainApp.processEvents()
+    sys.exit(mainApp.exec())

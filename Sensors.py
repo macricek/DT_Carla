@@ -1,3 +1,6 @@
+import copy
+import threading
+
 import carla
 import math
 import cv2
@@ -22,7 +25,7 @@ class SensorManager(QtCore.QObject):
         self.readySensors = 0
         self.vehicle = vehicle
         self.config = environment.config
-        self.ldCam = LineDetectorCamera(self, False)
+        self.ldCam = LineDetectorCamera(self, True)
         # self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
         self.collision = CollisionSensor(self, False)
         self.radar = RadarSensor(self, False)
@@ -93,7 +96,7 @@ class Sensor(QtCore.QObject):
         self.vehicle = manager.vehicle
         self.debug = debug
 
-    def callBack(self):
+    def callBack(self, data):
         pass
 
     def activate(self):
@@ -102,11 +105,9 @@ class Sensor(QtCore.QObject):
 
     def on_world_tick(self):
         print(f"[{self.name}] on world tick")
-        if self.queue.qsize() == 0:
-            print(f"Empty data queue for sensor {self.name}")
-        else:
+        if self.queue.qsize() > 0:
             self.callBack(self.queue.get())
-        print(f"Emitting ready for sensor {self.name}")
+        #print(f"Emitting ready for sensor {self.name}")
 
     def reference(self):
         return self.vehicle.ref()
@@ -135,8 +136,8 @@ class Sensor(QtCore.QObject):
 
 
 class RadarSensor(Sensor):
-    def __init__(self, vehicle, debug=False):
-        super().__init__(vehicle, debug)
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
         self.velocity_range = 7.5
         self.name = "Radar"
         self.bp = self.blueprints().find('sensor.other.radar')
@@ -159,8 +160,8 @@ class RadarSensor(Sensor):
 class CollisionSensor(Sensor):
     collided: bool
 
-    def __init__(self, vehicle, debug=False):
-        super().__init__(vehicle, debug)
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
         self.name = "Collision"
         self.collided = False
         self.bp = super().blueprints().find('sensor.other.collision')
@@ -187,8 +188,8 @@ class ObstacleDetector(Sensor):
 
 
 class LidarSensor(Sensor):
-    def __init__(self, vehicle, debug=False):
-        super().__init__(vehicle, debug)
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
         self.name = "Lidar"
         self.bp = super().blueprints().find('sensor.lidar.ray_cast')
         self.bp.channels = 1
@@ -212,12 +213,14 @@ class Camera(Sensor):
         'LineDetection': ['sensor.camera.rgb', cc.Raw]
     }
 
-    def __init__(self, vehicle, debug=False):
-        super().__init__(vehicle, debug)
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
         d = self.config().readSection('Camera')
         self.camHeight = int(d["height"])
         self.camWidth = int(d["width"])
         self.image = None
+        self.running = False
+        self.drawingThread = None
         self.name = 'RGB'
 
     def create(self):
@@ -235,14 +238,16 @@ class Camera(Sensor):
         # self.image.convert(self.options.get(self.name)[1])
 
     def draw(self):
+        print("Starting drawing thread")
         while not self.manager.isCollided():
-            cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), self.image)
-            cv2.waitKey(10)
+            drawingImg = copy.copy(self.image)
+            cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), drawingImg)
+            cv2.waitKey(1)
 
 
 class LineDetectorCamera(Camera):
-    def __init__(self, vehicle, debug=False):
-        super(LineDetectorCamera, self).__init__(vehicle, debug)
+    def __init__(self, manager, debug=False):
+        super(LineDetectorCamera, self).__init__(manager, debug)
         self.name = 'LineDetection'
         self.create()
 
@@ -255,4 +260,6 @@ class LineDetectorCamera(Camera):
         super().callBack(data)
         print("----------------------------------------------------------------------------------------")
         self.predict()
-        self.draw()
+        if self.drawingThread is None and self.debug:
+            self.drawingThread = threading.Thread(target=self.draw)
+            self.drawingThread.start()
