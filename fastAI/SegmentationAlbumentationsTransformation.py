@@ -49,7 +49,3 @@ class SegmentationAlbumentationsTransformation(ItemTransform):
                     ]
         transform = albu.Compose(albuList)
         return transform
-
-
-
-

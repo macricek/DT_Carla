@@ -1,3 +1,16 @@
 [CARLA]
 map=Town04
 weather=carla.WeatherParameters.ClearNoon
+ts=0.05
+sync=True
+
+[Camera]
+WIDTH=1024
+HEIGHT=512
+
+[Sensors]
+radarSensor=True
+lineDetectorCamera=True
+collisionSensor=True
+obstacleDetector=False
+lidarSensor=False

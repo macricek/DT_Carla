@@ -2,98 +2,82 @@ import threading
 import carla
 import time
 import random
-
-import Sensors
+from PyQt5.QtCore import QObject, pyqtSignal
 from Sensors import *
 import sys
+
 sys.path.insert(0, "fastAI")
 from FALineDetector import FALineDetector
 
 ## global constants
-MAX_TIME_CAR = 30
+MAX_TIME_CAR = 5
+CAM_HEIGHT = 512
+CAM_WIDTH = 1024
 
 
-class Vehicle(threading.Thread):
-    me = carla.Vehicle                           #ref to vehicler
+class Vehicle(QObject):
+    me = carla.Vehicle  # ref to vehicle
 
-    camHeight = 512
-    camWidth = 1024
+    # states of vehicle
+    location: carla.Vector3D
+    velocity: carla.Vector3D
 
-    #states of vehicle
-    location = None
-    velocity = None
+    # camera
+    ldCam: LineDetectorCamera
+    seg: Camera
 
-    #camera
-    rgb = Sensors.Camera
-    seg = Sensors.Camera
+    # sensor
+    collision: CollisionSensor
+    lidar: LidarSensor
+    radar: RadarSensor
+    obstacleDetector: ObstacleDetector
 
-    #sensor
-    collision = Sensors.CollisionSensor
-    lidar = Sensors.LidarSensor
-    radar = Sensors.RadarSensor
-    obstacleDetector = Sensors.ObstacleDetector
-
-    #other
+    # other
     debug: bool
+    fald: FALineDetector
 
-    sensors = []
+    # signals
+    finished = pyqtSignal()
 
     def __init__(self, environment, spawnLocation, id):
-        threading.Thread.__init__(self)
+        super(Vehicle, self).__init__()
         self.threadID = id  # threadOBJ
         self.environment = environment
         self.debug = self.environment.debug
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
-        self.setupSensors()
         self.processMeasures()
+        self.sensorManager = SensorManager(self, self.environment)
         if self.debug:
-            print("Vehicle {id} starting".format(id=self.threadID))
+            print("Vehicle {id} ready".format(id=self.threadID))
 
     def run(self):
-        start = time.time()
-        now = time.time()
-        while now - start < MAX_TIME_CAR and not self.isCollided() and self.me:
-            #there it will NN decide
-            steer = random.uniform(-1, 1)
-            throttle = random.uniform(0, 1)
-            try:
-                self.controlVehicle(throttle=throttle)
-                self.processMeasures()
-                if self.debug and self.rgb.isImageAvailable():
-                    self.rgb.draw()
-                if self.debug and self.seg.isImageAvailable():
-                    self.seg.draw()
-                time.sleep(0.05)
-                now = time.time()
-            except:
-                None
-        self.destroy()
+        if not self.me or self.sensorManager.isCollided():
+            print("TERMINATE")
+            self.sensorManager.destroy()
+            self.destroy()
+
+        # there will NN decide
+        try:  # events that needs TICK
+            self.environment.world.wait_for_tick()
+            self.sensorManager.processSensors()
+        except RuntimeError:
+            print("Timeout, no tick!")
+            print("TERMINATE")
+            self.sensorManager.destroy()
+            self.destroy()
+
+        steer = random.uniform(-1, 1)
+        throttle = random.uniform(0, 1)
+        self.controlVehicle(throttle=throttle)
+        #self.processMeasures()
+        self.finished.emit()
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
         if self.debug:
             print("{id}:[Control] T: {th}, S: {st}, B: {b}".format(id=self.threadID, th=throttle, st=steer, b=brake))
         self.me.apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake,
-                                                        hand_brake=hand_brake, reverse=reverse))
-
-    def isCollided(self):
-        return self.collision.isCollided()
-
-    def setupSensors(self):
-        self.environment.allFeatures.append(self.me)
-        self.rgb = Camera(self, self.camHeight, self.camWidth)
-        #self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
-        self.collision = CollisionSensor(self)
-        #self.radar = RadarSensor(self, True)
-        #self.lidar = LidarSensor(self)
-        self.obstacleDetector = ObstacleDetector(self)
-        self.sensors.append(self.rgb)
-        #self.sensors.append(self.seg)
-        self.sensors.append(self.collision)
-        #self.sensors.append(self.radar)
-        #self.sensors.append(self.lidar)
-        self.sensors.append(self.obstacleDetector)
-        self.environment.allFeatures.extend(self.sensors)
+                                                   hand_brake=hand_brake, reverse=reverse))
 
     def processMeasures(self):
         self.location = self.me.get_location()
@@ -115,8 +99,8 @@ class Vehicle(threading.Thread):
         if self.debug:
             print("Destroying Vehicle {id}".format(id=self.threadID))
         try:
-            for actor in self.sensors:
-                actor.destroy()
+            self.sensorManager.destroy()
             self.me.destroy()
+            self.finished.emit()
         finally:
             self.environment.deleteVehicle(self)

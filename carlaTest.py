@@ -18,16 +18,9 @@ except IndexError:
     pass
 import carla
 
-
-def setSimulation(self):
-    self.world.unload_map_layer(carla.MapLayer.All)  # make map easier
-    self.world.load_map_layer(carla.MapLayer.Walls)
-    self.originalSettings = self.world.get_settings()
-    settings = self.world.get_settings()
-    settings.fixed_delta_seconds = 0.05
-    self.world.apply_settings(settings)
-
-
-def stopSimulation(self):
-    self.world.load_map_layer(carla.MapLayer.All)
-    self.world.apply_settings(self.originalSettings)
+client = carla.Client('localhost', 2000)
+client.set_timeout(10)
+world = client.get_world()
+l = world.get_actors()
+for a in l:
+    a.destroy()

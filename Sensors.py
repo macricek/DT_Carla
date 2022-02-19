@@ -1,22 +1,113 @@
+import copy
+import threading
+
 import carla
-#from Vehicle import Vehicle
 import math
 import cv2
 import numpy as np
 from carla import ColorConverter as cc
+import queue
+from PyQt5 import QtCore
 
 
-class Sensor(object):
-    sensor = None
-    debug: bool = False
+class SensorManager(QtCore.QObject):
+    """
+    In case of Sync, we need to manage sensors when server ticks.
+    If mode is async, we could simply rely on callbacks.
+    """
+    readySignal = QtCore.pyqtSignal()
 
-    def __init__(self, vehicle, debug):
-        self.sensor = None
+    def __init__(self, vehicle, environment):
+        super().__init__()
+        self._queues = []
+        self.sensors = []
+        self.count = 0
+        self.readySensors = 0
         self.vehicle = vehicle
+        self.config = environment.config
+        self.ldCam = LineDetectorCamera(self, True)
+        # self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
+        self.collision = CollisionSensor(self, False)
+        self.radar = RadarSensor(self, False)
+        self.lidar = LidarSensor(self, False)
+        self.obstacleDetector = ObstacleDetector(self, False)
+        self.addToSensorsList()
+        self.activate()
+
+    def addToSensorsList(self):
+        settings: dict
+        settings = self.config.readSection("Sensors")
+        if bool(settings.get("radarsensor")):
+            self.sensors.append(self.radar)
+        if bool(settings.get("linedetectorcamera")):
+            self.sensors.append(self.ldCam)
+        if bool(settings.get("collisionsensor")):
+            self.sensors.append(self.collision)
+        if bool(settings.get("obstacledetector")):
+            self.sensors.append(self.obstacleDetector)
+        if bool(settings.get("lidarsensor")):
+            self.sensors.append(self.lidar)
+
+    def activate(self):
+        for sensor in self.sensors:
+            print(f"Activating {self.count}: {sensor.bp}")
+            self.count += 1
+            sensor.activate()
+
+    def processSensors(self):
+        for sensor in self.sensors:
+            sensor.on_world_tick()
+        print("on_world_tick done!")
+
+    def readySensor(self):
+        self.readySensors += 1
+        print(f"Got signal ready from {self.readySensors}/{self.count}")
+        self.checkForPossibleInvoke()
+
+    def checkForPossibleInvoke(self):
+        if self.readySensors == self.count:
+            print("All sensors ready")
+            self.readySensors = 0
+            self.readySignal.emit()
+
+    def isCollided(self):
+        return self.collision.isCollided()
+
+    def destroy(self):
+        print(f"Invoking deletion of sensors of {self.vehicle.threadID} vehicle!")
+        for sensor in self.sensors:
+            print(f"Deleting sensor {sensor.bp}")
+            sensor.destroy()
+
+
+class Sensor(QtCore.QObject):
+    debug: bool = False
+    # send signal
+
+    def __init__(self, manager, debug):
+        super(Sensor, self).__init__()
+        self.sensor = None
+        self.bp = None
+        self.where = None
+        self.manager = manager
+        self.name = "Sensor"
+        # self.ready = False
+        self.queue = queue.Queue()
+        self.vehicle = manager.vehicle
         self.debug = debug
 
-    def setSensor(self, sensor):
-        self.sensor = sensor
+    def callBack(self, data):
+        pass
+
+    def activate(self):
+        self.sensor = self.world().spawn_actor(self.bp, self.where, attach_to=self.reference())
+        self.sensor.listen(lambda data: self.queue.put(data))
+
+    def on_world_tick(self):
+        print(f"[{self.name}] on world tick")
+        if self.queue.qsize() > 0:
+            self.callBack(self.queue.get())
+        #print(f"Emitting ready for sensor {self.name}")
 
     def reference(self):
         return self.vehicle.ref()
@@ -33,6 +124,9 @@ class Sensor(object):
     def lineDetector(self):
         return self.vehicle.fald
 
+    def config(self):
+        return self.vehicle.environment.config
+
     def destroy(self):
         if self.sensor is not None:
             try:
@@ -42,87 +136,38 @@ class Sensor(object):
 
 
 class RadarSensor(Sensor):
-    def __init__(self, vehicle, debug=False):
-        super().__init__(vehicle, debug)
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
         self.velocity_range = 7.5
-        bp = self.blueprints().find('sensor.other.radar')
-        bp.set_attribute('horizontal_fov', str(35))
-        bp.set_attribute('vertical_fov', str(20))
-        where = carla.Transform(carla.Location(x=1.5))
-        self.setSensor(self.world().spawn_actor(bp, where, attach_to=self.reference()))
-        self.sensor.listen(
-            lambda radar_data: self._Radar_callback(radar_data))
+        self.name = "Radar"
+        self.bp = self.blueprints().find('sensor.other.radar')
+        self.bp.set_attribute('horizontal_fov', str(35))
+        self.bp.set_attribute('vertical_fov', str(20))
+        self.where = carla.Transform(carla.Location(x=1.5))
 
-    def _Radar_callback(self, radar_data):
-        current_rot = radar_data.transform.rotation
+    def callBack(self, data):
+        current_rot = data.transform.rotation
         i = 0
-        for detect in radar_data:
+        for detect in data:
             azi = math.degrees(detect.azimuth)
             alt = math.degrees(detect.altitude)
             dist = detect.depth
             if self.debug:
                 print("Dist to {i}: {d}, Azimuth: {a}, Altitude: {al}".format(i=i, d=dist, a=azi, al=alt))
-                i+=1
-
-
-class Camera(Sensor):
-    image = None
-    detectedLines = None
-
-    options = {
-        'RGB': ['sensor.camera.rgb', cc.Raw],
-        'Depth': ['sensor.camera.depth', cc.LogarithmicDepth],
-        'Semantic Segmentation': ['sensor.camera.semantic_segmentation', cc.CityScapesPalette]
-    }
-
-    def __init__(self, vehicle, height, width, type='RGB', debug=False):
-        self.camHeight = height
-        self.camWidth = width
-        super().__init__(vehicle, debug)
-        self.option = self.options.get(type)
-        self.type = type
-        camera = super().blueprints().find(self.option[0])
-        camera.set_attribute('image_size_x', f'{self.camWidth}')
-        camera.set_attribute('image_size_y', f'{self.camHeight}')
-        camera.set_attribute('fov', '110')
-
-        where = carla.Transform(carla.Location(x=2.5, z=0.7))
-        self.setSensor(self.world().spawn_actor(camera, where, attach_to=self.reference()))
-        self.sensor.listen(lambda image: self.cameraCallback(image))
-
-    def cameraCallback(self, image):
-        image.convert(self.option[1])
-        i = np.array(image.raw_data)
-        i2 = i.reshape((self.camHeight, self.camWidth, 4))
-        self.image = i2[:, :, :3]
-        if self.type.startswith("R"):
-            self.predict()
-
-    def isImageAvailable(self):
-        return self.image is not None
-
-    def predict(self):
-        self.lineDetector().loadImage(numpyArr=self.image)
-        self.lineDetector().predict()
-        self.lineDetector().integrateLines()
-
-    def draw(self):
-        cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.type), self.image)
-        cv2.waitKey(1)
+                i += 1
 
 
 class CollisionSensor(Sensor):
     collided: bool
 
-    def __init__(self, vehicle, debug=False):
-        super().__init__(vehicle, debug)
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
+        self.name = "Collision"
         self.collided = False
-        colsensor = super().blueprints().find('sensor.other.collision')
-        where = carla.Transform(carla.Location(x=1.5, z=0.7))
-        self.setSensor(self.world().spawn_actor(colsensor, where, attach_to=self.reference()))
-        self.sensor.listen(lambda collision: self.processCollison(collision))
+        self.bp = super().blueprints().find('sensor.other.collision')
+        self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
-    def processCollison(self, collision):
+    def callBack(self, data):
         self.collided = True
         print("Vehicle {id} collided!".format(id=self.vehicle.threadID))
 
@@ -133,29 +178,88 @@ class CollisionSensor(Sensor):
 class ObstacleDetector(Sensor):
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
-        obsDetector = super().blueprints().find('sensor.other.obstacle')
-        where = carla.Transform(carla.Location(x=1.5, z=0.7))
-        self.setSensor(self.world().spawn_actor(obsDetector, where, attach_to=self.reference()))
-        self.sensor.listen(lambda obstacle: self.processObstacle(obstacle))
+        self.name = "Obstacle"
+        self.bp = super().blueprints().find('sensor.other.obstacle')
+        self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
-    @staticmethod
-    def processObstacle(obstacle):
-        distance = obstacle.distance
+    def callBack(self, data):
+        distance = data.distance
         print("{distance}".format(distance=distance))
 
 
 class LidarSensor(Sensor):
-    def __init__(self, vehicle, debug=False):
-        super().__init__(vehicle, debug)
-        lidar = super().blueprints().find('sensor.lidar.ray_cast')
-        lidar.channels = 1
-        where = carla.Transform(carla.Location(x=0, z=0))
-        self.setSensor(self.world().spawn_actor(lidar, where, attach_to=self.reference()))
-        self.sensor.listen(lambda lidarData: self.processLidarMeasure(lidarData))
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
+        self.name = "Lidar"
+        self.bp = super().blueprints().find('sensor.lidar.ray_cast')
+        self.bp.channels = 1
+        self.where = carla.Transform(carla.Location(x=0, z=0))
 
-    def processLidarMeasure(self, lidarData):
+    def callBack(self, data):
         if self.debug:
             number = 0
-            for location in lidarData:
+            for location in data:
                 print("{num}: {location}".format(num=number, location=location))
                 number += 1
+
+
+class Camera(Sensor):
+    name: str
+
+    options = {
+        'RGB': ['sensor.camera.rgb', cc.Raw],
+        'Depth': ['sensor.camera.depth', cc.LogarithmicDepth],
+        'Semantic Segmentation': ['sensor.camera.semantic_segmentation', cc.CityScapesPalette],
+        'LineDetection': ['sensor.camera.rgb', cc.Raw]
+    }
+
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
+        d = self.config().readSection('Camera')
+        self.camHeight = int(d["height"])
+        self.camWidth = int(d["width"])
+        self.image = None
+        self.running = False
+        self.drawingThread = None
+        self.name = 'RGB'
+
+    def create(self):
+        typeOfCamera = self.options.get(self.name)[0]
+        self.bp = super().blueprints().find(typeOfCamera)
+        self.bp.set_attribute('image_size_x', f'{self.camWidth}')
+        self.bp.set_attribute('image_size_y', f'{self.camHeight}')
+        self.bp.set_attribute('fov', '110')
+        self.where = carla.Transform(carla.Location(x=2.5, z=0.7))
+
+    def callBack(self, data):
+        i = np.array(data.raw_data)
+        i2 = i.reshape((self.camHeight, self.camWidth, 4))
+        self.image = i2[:, :, :3]
+        # self.image.convert(self.options.get(self.name)[1])
+
+    def draw(self):
+        print("Starting drawing thread")
+        while not self.manager.isCollided():
+            drawingImg = copy.copy(self.image)
+            cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), drawingImg)
+            cv2.waitKey(1)
+
+
+class LineDetectorCamera(Camera):
+    def __init__(self, manager, debug=False):
+        super(LineDetectorCamera, self).__init__(manager, debug)
+        self.name = 'LineDetection'
+        self.create()
+
+    def predict(self):
+        self.lineDetector().loadImage(numpyArr=self.image)
+        self.lineDetector().predict()
+        self.lineDetector().integrateLines()
+
+    def callBack(self, data):
+        super().callBack(data)
+        print("----------------------------------------------------------------------------------------")
+        self.predict()
+        if self.drawingThread is None and self.debug:
+            self.drawingThread = threading.Thread(target=self.draw)
+            self.drawingThread.start()
