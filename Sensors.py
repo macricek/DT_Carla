@@ -10,6 +10,10 @@ import queue
 from PyQt5 import QtCore
 
 
+def convertStringToBool(string: str):
+    return string.lower() == "true"
+
+
 class SensorManager(QtCore.QObject):
     """
     In case of Sync, we need to manage sensors when server ticks.
@@ -25,32 +29,42 @@ class SensorManager(QtCore.QObject):
         self.readySensors = 0
         self.vehicle = vehicle
         self.config = environment.config
-        self.ldCam = LineDetectorCamera(self, True)
-        # self.seg = Camera(self, self.camHeight, self.camWidth, type='Semantic Segmentation')
+
+        self.ldCam = LineDetectorCamera(self, False, True)
+        self.rgbCam = Camera(self, False, True)
+        self.segCam = SegmentationCamera(self, False, True)
+
         self.collision = CollisionSensor(self, False)
         self.radar = RadarSensor(self, False)
         self.lidar = LidarSensor(self, False)
         self.obstacleDetector = ObstacleDetector(self, False)
+
         self.addToSensorsList()
         self.activate()
 
     def addToSensorsList(self):
         settings: dict
         settings = self.config.readSection("Sensors")
-        if bool(settings.get("radarsensor")):
+        # SENSORS
+        if convertStringToBool(settings.get("radarsensor")):
             self.sensors.append(self.radar)
-        if bool(settings.get("linedetectorcamera")):
-            self.sensors.append(self.ldCam)
-        if bool(settings.get("collisionsensor")):
+        if convertStringToBool(settings.get("collisionsensor")):
             self.sensors.append(self.collision)
-        if bool(settings.get("obstacledetector")):
+        if convertStringToBool(settings.get("obstacledetector")):
             self.sensors.append(self.obstacleDetector)
-        if bool(settings.get("lidarsensor")):
+        if convertStringToBool(settings.get("lidarsensor")):
             self.sensors.append(self.lidar)
+        # CAMERAS
+        if convertStringToBool(settings.get("linedetectorcamera")):
+            self.sensors.append(self.ldCam)
+        if convertStringToBool(settings.get("defaultcamera")):
+            self.sensors.append(self.rgbCam)
+        if convertStringToBool(settings.get("segmentationcamera")):
+            self.sensors.append(self.segCam)
 
     def activate(self):
         for sensor in self.sensors:
-            print(f"Activating {self.count}: {sensor.bp}")
+            print(f"Activating {self.count}: {sensor.name}")
             self.count += 1
             sensor.activate()
 
@@ -82,6 +96,7 @@ class SensorManager(QtCore.QObject):
 
 class Sensor(QtCore.QObject):
     debug: bool = False
+
     # send signal
 
     def __init__(self, manager, debug):
@@ -107,7 +122,7 @@ class Sensor(QtCore.QObject):
         print(f"[{self.name}] on world tick")
         if self.queue.qsize() > 0:
             self.callBack(self.queue.get())
-        #print(f"Emitting ready for sensor {self.name}")
+        # print(f"Emitting ready for sensor {self.name}")
 
     def reference(self):
         return self.vehicle.ref()
@@ -207,21 +222,25 @@ class Camera(Sensor):
     name: str
 
     options = {
-        'RGB': ['sensor.camera.rgb', cc.Raw],
+        'Main': ['sensor.camera.rgb', cc.Raw],
         'Depth': ['sensor.camera.depth', cc.LogarithmicDepth],
         'Semantic Segmentation': ['sensor.camera.semantic_segmentation', cc.CityScapesPalette],
         'LineDetection': ['sensor.camera.rgb', cc.Raw]
     }
 
-    def __init__(self, manager, debug=False):
+    def __init__(self, manager, debug=False, show=True):
         super().__init__(manager, debug)
         d = self.config().readSection('Camera')
         self.camHeight = int(d["height"])
         self.camWidth = int(d["width"])
         self.image = None
-        self.running = False
+        self.show = show
         self.drawingThread = None
-        self.name = 'RGB'
+        self.bound_x = 0.5 + self.reference().bounding_box.extent.x
+        self.bound_y = 0.5 + self.reference().bounding_box.extent.y
+        self.bound_z = 0.5 + self.reference().bounding_box.extent.z
+        self.name = 'Main'
+        self.create()
 
     def create(self):
         typeOfCamera = self.options.get(self.name)[0]
@@ -229,25 +248,38 @@ class Camera(Sensor):
         self.bp.set_attribute('image_size_x', f'{self.camWidth}')
         self.bp.set_attribute('image_size_y', f'{self.camHeight}')
         self.bp.set_attribute('fov', '110')
-        self.where = carla.Transform(carla.Location(x=2.5, z=0.7))
+        self.where = carla.Transform(carla.Location(x=-2.0 * self.bound_x, y=+0.0 * self.bound_y, z=2.0 * self.bound_z),
+                                     carla.Rotation(pitch=-8.0))
 
     def callBack(self, data):
+        if self.debug:
+            print(f"Entering {self.name} callback!")
+        data.convert(self.options.get(self.name)[1])
         i = np.array(data.raw_data)
         i2 = i.reshape((self.camHeight, self.camWidth, 4))
         self.image = i2[:, :, :3]
-        # self.image.convert(self.options.get(self.name)[1])
+        if self.isMain():
+            self.invokeDraw()
 
     def draw(self):
-        print("Starting drawing thread")
+        print(f"[{self.name}]Starting drawing thread")
         while not self.manager.isCollided():
             drawingImg = copy.copy(self.image)
             cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), drawingImg)
             cv2.waitKey(1)
 
+    def invokeDraw(self):
+        if self.drawingThread is None and self.show:
+            self.drawingThread = threading.Thread(target=self.draw)
+            self.drawingThread.start()
+
+    def isMain(self):
+        return self.name == 'Main'
+
 
 class LineDetectorCamera(Camera):
-    def __init__(self, manager, debug=False):
-        super(LineDetectorCamera, self).__init__(manager, debug)
+    def __init__(self, manager, debug=False, show=True):
+        super(LineDetectorCamera, self).__init__(manager, debug, show)
         self.name = 'LineDetection'
         self.create()
 
@@ -256,10 +288,26 @@ class LineDetectorCamera(Camera):
         self.lineDetector().predict()
         self.lineDetector().integrateLines()
 
+    def create(self):
+        super(LineDetectorCamera, self).create()
+        self.where = carla.Transform(carla.Location(x=2.5, z=0.7))
+
     def callBack(self, data):
         super().callBack(data)
-        print("----------------------------------------------------------------------------------------")
         self.predict()
-        if self.drawingThread is None and self.debug:
-            self.drawingThread = threading.Thread(target=self.draw)
-            self.drawingThread.start()
+        self.invokeDraw()
+
+
+class SegmentationCamera(Camera):
+    def __init__(self, manager, debug=False, show=True):
+        super(SegmentationCamera, self).__init__(manager, debug, show)
+        self.name = 'Semantic Segmentation'
+        self.create()
+
+    def create(self):
+        super(SegmentationCamera, self).create()
+        self.where = carla.Transform(carla.Location(x=2.5, z=0.7))
+
+    def callBack(self, data):
+        super(SegmentationCamera, self).callBack(data)
+        self.invokeDraw()
