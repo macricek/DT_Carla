@@ -11,6 +11,8 @@ HEIGHT=512
 [Sensors]
 radarSensor=True
 lineDetectorCamera=True
+defaultCamera=True
+segmentationCamera=True
 collisionSensor=True
 obstacleDetector=False
 lidarSensor=False

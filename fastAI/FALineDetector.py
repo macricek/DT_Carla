@@ -25,6 +25,7 @@ class FALineDetector:
         self.model = self.learner.model.cuda()
         self.time = time.time()
         self.initLearners(isMain)
+        self.treshold = 0.25
 
     def importModels(self, aug, ismain):
         if ismain:
@@ -48,10 +49,10 @@ class FALineDetector:
 
     def integrateLines(self):
         if self.useLearner:
-            self.image[self.model > 0.1, :] = [0, 255, 0]  # use green separators
+            self.image[self.model > self.treshold, :] = [0, 255, 0]  # use green separators
         else:
-            self.image[self.left > 0.1, :] = [0, 0, 255]  # blue for left
-            self.image[self.right > 0.1, :] = [255, 0, 0]  # red for right
+            self.image[self.left > self.treshold, :] = [0, 0, 255]  # blue for left
+            self.image[self.right > self.treshold, :] = [255, 0, 0]  # red for right
 
     def visualize(self):
         self.integrateLines()
