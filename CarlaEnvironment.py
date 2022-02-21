@@ -40,6 +40,8 @@ class CarlaEnvironment(QObject):
         self.readyVehicles = 0
         self.client = carla.Client('localhost', 2000)
         self.config = CarlaConfig(self.client)
+        self.trafficManager = carla.TrafficManager()
+        self.trafficManager.set_synchronous_mode(self.config.sync)
 
         self.world = self.client.get_world()
 
@@ -99,4 +101,6 @@ class CarlaEnvironment(QObject):
     def __del__(self):
         self.deleteAll()
         print("Turning off sync mode")
+        self.trafficManager.set_synchronous_mode(False)
         self.config.turnOffSync()
+

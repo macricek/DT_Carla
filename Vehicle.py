@@ -69,7 +69,8 @@ class Vehicle(QObject):
 
         steer = random.uniform(-1, 1)
         throttle = random.uniform(0, 1)
-        self.controlVehicle(throttle=throttle)
+        #self.controlVehicle(throttle=throttle)
+        self.me.set_autopilot(True)
         #self.processMeasures()
         self.finished.emit()
 
