@@ -40,7 +40,7 @@ class CarlaEnvironment(QObject):
         self.readyVehicles = 0
         self.client = carla.Client('localhost', 2000)
         self.config = CarlaConfig(self.client)
-        self.trafficManager = carla.TrafficManager()
+        self.trafficManager = self.client.get_trafficmanager()
         self.trafficManager.set_synchronous_mode(self.config.sync)
 
         self.world = self.client.get_world()

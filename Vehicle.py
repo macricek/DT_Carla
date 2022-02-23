@@ -5,9 +5,10 @@ import random
 from PyQt5.QtCore import QObject, pyqtSignal
 from Sensors import *
 import sys
+from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
+from agents.navigation.basic_agent import BasicAgent
 
-sys.path.insert(0, "fastAI")
-from FALineDetector import FALineDetector
+from fastAI.FALineDetector import FALineDetector
 
 ## global constants
 MAX_TIME_CAR = 5
@@ -46,6 +47,7 @@ class Vehicle(QObject):
         self.debug = self.environment.debug
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
+        self.agent = BasicAgent(self.me, target_speed=50)
         self.processMeasures()
         self.sensorManager = SensorManager(self, self.environment)
         if self.debug:
@@ -56,7 +58,8 @@ class Vehicle(QObject):
             print("TERMINATE")
             self.sensorManager.destroy()
             self.destroy()
-
+            return
+        print("Vehicle here")
         # there will NN decide
         try:  # events that needs TICK
             self.environment.world.wait_for_tick()
@@ -66,11 +69,15 @@ class Vehicle(QObject):
             print("TERMINATE")
             self.sensorManager.destroy()
             self.destroy()
+            return
 
         steer = random.uniform(-1, 1)
         throttle = random.uniform(0, 1)
         #self.controlVehicle(throttle=throttle)
-        self.me.set_autopilot(True)
+        control = self.agent.run_step()
+        control.manual_gear_shift = False
+        print(f"Control: {control}")
+        self.me.apply_control(control)
         #self.processMeasures()
         self.finished.emit()
 

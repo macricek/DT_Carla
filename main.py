@@ -2,7 +2,8 @@ from CarlaEnvironment import CarlaEnvironment
 import sys
 from PyQt5.QtCore import QObject, QThread, QCoreApplication
 import time
-from fastAI import get_image_array_from_fn, label_func
+sys.path.insert(0, "fastAI")
+from fastAI.fastAI import get_image_array_from_fn, label_func
 
 
 class Main(QCoreApplication):
