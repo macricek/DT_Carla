@@ -4,6 +4,7 @@ import time
 import random
 from PyQt5.QtCore import QObject, pyqtSignal
 from Sensors import *
+from queue import Queue
 import sys
 from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 from agents.navigation.basic_agent import BasicAgent
@@ -47,9 +48,17 @@ class Vehicle(QObject):
         self.debug = self.environment.debug
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
-        self.agent = BasicAgent(self.me, target_speed=50)
         self.processMeasures()
         self.sensorManager = SensorManager(self, self.environment)
+
+        self.agent = BasicAgent(self.me, target_speed=50)
+        spawnPoints = self.environment.map.get_spawn_points()
+        self.pts = Queue()
+        self.pts.put(spawnPoints[133].location)
+        self.pts.put(spawnPoints[129].location)
+        self.goal = self.pts.get()
+        self.agent.set_destination(self.goal)
+
         if self.debug:
             print("Vehicle {id} ready".format(id=self.threadID))
 
@@ -62,7 +71,7 @@ class Vehicle(QObject):
         print("Vehicle here")
         # there will NN decide
         try:  # events that needs TICK
-            self.environment.world.wait_for_tick()
+            #self.environment.world.wait_for_tick(2000)
             self.sensorManager.processSensors()
         except RuntimeError:
             print("Timeout, no tick!")
@@ -74,12 +83,30 @@ class Vehicle(QObject):
         steer = random.uniform(-1, 1)
         throttle = random.uniform(0, 1)
         #self.controlVehicle(throttle=throttle)
-        control = self.agent.run_step()
-        control.manual_gear_shift = False
-        print(f"Control: {control}")
+        control = self.agentAction()
+        if control == -1:
+            print("TERMINATE based on agent")
+            self.sensorManager.destroy()
+            self.destroy()
+            return
+
         self.me.apply_control(control)
         #self.processMeasures()
         self.finished.emit()
+
+    def agentAction(self):
+        if self.agent.done():
+            if self.pts.empty():
+                return -1
+            self.goal = self.pts.get()
+            print(f"New waypoint: {self.goal}")
+            self.agent.set_destination(self.goal)
+        print(f"Asked: {self.goal}")
+        self.processMeasures()
+        control = self.agent.run_step()
+        control.manual_gear_shift = False
+        print(f"Control: {control}")
+        return control
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
         if self.debug:

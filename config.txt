@@ -16,3 +16,6 @@ segmentationCamera=True
 collisionSensor=True
 obstacleDetector=False
 lidarSensor=False
+
+[Points]
+p= [99, 133, 129]

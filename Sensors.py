@@ -119,7 +119,8 @@ class Sensor(QtCore.QObject):
         self.sensor.listen(lambda data: self.queue.put(data))
 
     def on_world_tick(self):
-        print(f"[{self.name}] on world tick")
+        if self.debug:
+            print(f"[{self.name}] on world tick")
         if self.queue.qsize() > 0:
             self.callBack(self.queue.get())
         # print(f"Emitting ready for sensor {self.name}")

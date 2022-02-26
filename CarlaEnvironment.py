@@ -64,7 +64,7 @@ class CarlaEnvironment(QObject):
     def spawnVehicles(self, numVehicles):
         for i in range(0, numVehicles):
             spawnPoints = self.map.get_spawn_points()
-            start = spawnPoints[int(random.random()*len(spawnPoints))]
+            start = spawnPoints[i+99]  # spawnPoints[int(random.random()*len(spawnPoints))]
             vehicle = Vehicle(self, start, id=self.id)
             thread = QThread()
             vehicle.moveToThread(thread)
@@ -96,7 +96,10 @@ class CarlaEnvironment(QObject):
                 print("Removing vehicle!")
             except:
                 print("Already deleted!")
-        del self.threads
+        try:
+            del self.threads
+        except:
+            print("No threads")
 
     def __del__(self):
         self.deleteAll()
