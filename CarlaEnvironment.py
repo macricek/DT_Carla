@@ -64,7 +64,7 @@ class CarlaEnvironment(QObject):
     def spawnVehicles(self, numVehicles):
         for i in range(0, numVehicles):
             spawnPoints = self.map.get_spawn_points()
-            start = spawnPoints[i+99]  # spawnPoints[int(random.random()*len(spawnPoints))]
+            start = spawnPoints[int(random.random()*len(spawnPoints))] #spawnPoints[i+99]
             vehicle = Vehicle(self, start, id=self.id)
             thread = QThread()
             vehicle.moveToThread(thread)

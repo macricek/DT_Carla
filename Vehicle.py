@@ -57,7 +57,7 @@ class Vehicle(QObject):
         self.pts.put(spawnPoints[133].location)
         self.pts.put(spawnPoints[129].location)
         self.goal = self.pts.get()
-        self.agent.set_destination(self.goal)
+        #self.agent.set_destination(self.goal)
 
         if self.debug:
             print("Vehicle {id} ready".format(id=self.threadID))
@@ -83,12 +83,9 @@ class Vehicle(QObject):
         steer = random.uniform(-1, 1)
         throttle = random.uniform(0, 1)
         #self.controlVehicle(throttle=throttle)
-        control = self.agentAction()
-        if control == -1:
-            print("TERMINATE based on agent")
-            self.sensorManager.destroy()
-            self.destroy()
-            return
+        control = self.agent.run_step()
+        control.manual_gear_shift = False
+        print(f"Control: {control}")
 
         self.me.apply_control(control)
         #self.processMeasures()
