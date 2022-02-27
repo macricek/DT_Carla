@@ -21,7 +21,7 @@ class Vehicle(QObject):
     me = carla.Vehicle  # ref to vehicle
 
     # states of vehicle
-    location: carla.Vector3D
+    location: carla.Location
     velocity: carla.Vector3D
 
     # camera
@@ -46,15 +46,10 @@ class Vehicle(QObject):
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
         self.speed = 0
-        self.sensorManager = SensorManager(self, self.environment)
+        self.getLocation()
 
-        self.agent = BehaviorAgent(self.me)
-        spawnPoints = self.environment.map.get_spawn_points()
-        self.pts = Queue()
-        self.pts.put(spawnPoints[133].location)
-        self.pts.put(spawnPoints[129].location)
-        self.goal = self.pts.get()
-        #self.agent.set_destination(self.goal)
+        self.initAgent(spawnLocation.location)
+        self.sensorManager = SensorManager(self, self.environment)
 
         if self.debug:
             print("Vehicle {id} ready".format(id=self.threadID))
@@ -64,11 +59,10 @@ class Vehicle(QObject):
             self.terminate()
             return False
         # there will NN decide
-        self.sensorManager.processSensors()
-
         control = self.agent.run_step()
         control.manual_gear_shift = False
         print(f"Control: {control}")
+        self.sensorManager.processSensors()
 
         self.me.apply_control(control)
         return True
@@ -91,6 +85,25 @@ class Vehicle(QObject):
         print(f"Control: {control}")
         return control
 
+    def initAgent(self, spawnLoc):
+        '''
+        Init BasicAgent - we will use agent's PID to regulate speed.
+        :param spawnLoc: carla.Location -> starting Location of agent
+        :return: nothing
+        '''
+        self.getLocation()
+        while self.diffToLocation(spawnLoc) > 1:
+            self.environment.tick()
+            self.getLocation()
+            time.sleep(0.01)
+        self.agent = BasicAgent(self.me, target_speed=50)
+        spawnPoints = self.environment.map.get_spawn_points()
+        self.pts = Queue()
+        self.pts.put(spawnPoints[133].location)
+        self.pts.put(spawnPoints[129].location)
+        self.goal = self.pts.get()
+        self.agent.set_destination(self.goal)
+
     def terminate(self):
         print("TERMINATE")
         self.sensorManager.destroy()
@@ -111,6 +124,10 @@ class Vehicle(QObject):
         if self.debug:
             self.print3Dvector(self.location, "Location")
         return self.location
+
+    def diffToLocation(self, location: carla.Location):
+        dist = location.distance(self.location)
+        return dist
 
     def getSpeed(self):
         '''

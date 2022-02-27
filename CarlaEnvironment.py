@@ -53,13 +53,8 @@ class CarlaEnvironment(QObject):
         self.run()
 
     def tick(self):
-        self.readyVehicles += 1
-        print(f"Ready vehicles: {self.readyVehicles}/{self.numVehicles}")
-        if self.readyVehicles == self.numVehicles:
-            self.startThreads()
-            print("TICK!")
-            self.world.tick()
-            self.readyVehicles = 0
+        print("TICK!")
+        self.world.tick()
 
     def run(self):
         print("Starting RUN")
