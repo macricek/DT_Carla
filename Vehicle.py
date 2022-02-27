@@ -48,10 +48,10 @@ class Vehicle(QObject):
         self.debug = self.environment.debug
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
-        self.processMeasures()
+        self.speed = 0
         self.sensorManager = SensorManager(self, self.environment)
 
-        self.agent = BasicAgent(self.me, target_speed=50)
+        self.agent = BasicAgent(self.me)
         spawnPoints = self.environment.map.get_spawn_points()
         self.pts = Queue()
         self.pts.put(spawnPoints[133].location)
@@ -64,9 +64,7 @@ class Vehicle(QObject):
 
     def run(self):
         if not self.me or self.sensorManager.isCollided():
-            print("TERMINATE")
-            self.sensorManager.destroy()
-            self.destroy()
+            self.terminate()
             return
         print("Vehicle here")
         # there will NN decide
@@ -74,10 +72,7 @@ class Vehicle(QObject):
             #self.environment.world.wait_for_tick(2000)
             self.sensorManager.processSensors()
         except RuntimeError:
-            print("Timeout, no tick!")
-            print("TERMINATE")
-            self.sensorManager.destroy()
-            self.destroy()
+            self.terminate()
             return
 
         steer = random.uniform(-1, 1)
@@ -88,10 +83,13 @@ class Vehicle(QObject):
         print(f"Control: {control}")
 
         self.me.apply_control(control)
-        #self.processMeasures()
         self.finished.emit()
 
     def agentAction(self):
+        '''
+        Usage of agent to reach expected speed.
+        :return:
+        '''
         if self.agent.done():
             if self.pts.empty():
                 return -1
@@ -105,29 +103,61 @@ class Vehicle(QObject):
         print(f"Control: {control}")
         return control
 
+    def terminate(self):
+        print("TERMINATE")
+        self.sensorManager.destroy()
+        self.destroy()
+        self.environment.terminateVehicle(self.threadID)
+
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
         if self.debug:
             print("{id}:[Control] T: {th}, S: {st}, B: {b}".format(id=self.threadID, th=throttle, st=steer, b=brake))
         self.me.apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake,
                                                    hand_brake=hand_brake, reverse=reverse))
 
-    def processMeasures(self):
+    def getLocation(self):
+        '''
+        FILLS self.location with location of VEHICLE
+        :return: carla.Location
+        '''
         self.location = self.me.get_location()
-        self.velocity = self.me.get_velocity()
         if self.debug:
             self.print3Dvector(self.location, "Location")
-            self.print3Dvector(self.velocity, "Velocity")
+        return self.location
+
+    def getSpeed(self):
+        '''
+        FILLS   self.velocity with 3d vector of velocity
+                self.speed with speed in km/h of vehicle
+        :return: self.speed
+        '''
+        self.velocity = self.me.get_velocity()
+        self.speed = 3.6 * math.sqrt(self.velocity.x ** 2 + self.velocity.y ** 2 + self.velocity.z ** 2)
+        return self.speed
 
     def ref(self):
+        '''
+        :return: carla.Vehicle object of Vehicle
+        '''
         return self.me
 
     def print3Dvector(self, vector, type):
+        '''
+        Method for debug write of carla.3Dvector
+        :param vector: carla.3Dvector
+        :param type: name, what is printed [location/velocity...]
+        :return: nothing
+        '''
         x = vector.x
         y = vector.y
         z = vector.z
         print("{id}:[{t}] X: {x}, Y: {y}, Z: {z}".format(id=self.threadID, t=type, x=x, y=y, z=z))
 
     def destroy(self):
+        '''
+        Destroy all sensors attached to vehicle and then vehicle on it's own
+        :return: none
+        '''
         if self.debug:
             print("Destroying Vehicle {id}".format(id=self.threadID))
         try:

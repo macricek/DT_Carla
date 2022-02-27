@@ -76,18 +76,36 @@ class CarlaEnvironment(QObject):
             self.id += 1
 
     def startThreads(self):
-        print("Starting threads")
-        for thread in self.threads:
-            thread.start()
+        if len(self.threads) == 0:
+            self.done.emit()
+            print("No more threads")
+        else:
+            print("Starting threads")
+            for thread in self.threads:
+                thread.start()
 
-    def deleteVehicle(self, vehicle):
+    def terminateVehicle(self, threadId):
+        print(f"Terminating vehicle {threadId}")
+        veh = self.vehicles[threadId]
+        thread = self.threads[threadId]
+        self.deleteVehicle(veh, thread)
+
+    def deleteVehicle(self, vehicle, thread):
         for v in self.vehicles:
             if v == vehicle:
                 try:
                     self.vehicles.remove(vehicle)
                     del vehicle
                 except:
-                    print("already out")
+                    print("Vehicle already out")
+        for t in self.threads:
+            if t == thread:
+                try:
+                    t.quit()
+                    self.threads.remove(t)
+                    del thread
+                except:
+                    print("Thread already out")
 
     def deleteAll(self):
         for vehicle in self.vehicles:

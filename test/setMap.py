@@ -39,7 +39,7 @@ def spawnMorons(client):
 
 if __name__ == '__main__':
     client = carla.Client('localhost', 2000)
-    client.set_timeout(10)
+    client.set_timeout(30)
     setMap(client)
-    time.sleep(10)
-    spawnMorons(client)
+    #time.sleep(10)
+    #spawnMorons(client)
