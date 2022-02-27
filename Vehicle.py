@@ -38,9 +38,6 @@ class Vehicle(QObject):
     debug: bool
     fald: FALineDetector
 
-    # signals
-    finished = pyqtSignal()
-
     def __init__(self, environment, spawnLocation, id):
         super(Vehicle, self).__init__()
         self.threadID = id  # threadOBJ
@@ -51,7 +48,7 @@ class Vehicle(QObject):
         self.speed = 0
         self.sensorManager = SensorManager(self, self.environment)
 
-        self.agent = BasicAgent(self.me)
+        self.agent = BehaviorAgent(self.me)
         spawnPoints = self.environment.map.get_spawn_points()
         self.pts = Queue()
         self.pts.put(spawnPoints[133].location)
@@ -65,25 +62,16 @@ class Vehicle(QObject):
     def run(self):
         if not self.me or self.sensorManager.isCollided():
             self.terminate()
-            return
-        print("Vehicle here")
+            return False
         # there will NN decide
-        try:  # events that needs TICK
-            #self.environment.world.wait_for_tick(2000)
-            self.sensorManager.processSensors()
-        except RuntimeError:
-            self.terminate()
-            return
+        self.sensorManager.processSensors()
 
-        steer = random.uniform(-1, 1)
-        throttle = random.uniform(0, 1)
-        #self.controlVehicle(throttle=throttle)
         control = self.agent.run_step()
         control.manual_gear_shift = False
         print(f"Control: {control}")
 
         self.me.apply_control(control)
-        self.finished.emit()
+        return True
 
     def agentAction(self):
         '''
@@ -107,7 +95,6 @@ class Vehicle(QObject):
         print("TERMINATE")
         self.sensorManager.destroy()
         self.destroy()
-        self.environment.terminateVehicle(self.threadID)
 
     def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
         if self.debug:
@@ -163,6 +150,5 @@ class Vehicle(QObject):
         try:
             self.sensorManager.destroy()
             self.me.destroy()
-            self.finished.emit()
         finally:
             self.environment.deleteVehicle(self)
