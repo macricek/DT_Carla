@@ -30,9 +30,9 @@ class SensorManager(QtCore.QObject):
         self.vehicle = vehicle
         self.config = environment.config
 
-        self.ldCam = LineDetectorCamera(self, False, True)
+        self.ldCam = LineDetectorCamera(self, False, False)
         self.rgbCam = Camera(self, False, True)
-        self.segCam = SegmentationCamera(self, False, True)
+        self.segCam = SegmentationCamera(self, False, False)
 
         self.collision = CollisionSensor(self, False)
         self.radar = RadarSensor(self, False)
@@ -119,7 +119,8 @@ class Sensor(QtCore.QObject):
         self.sensor.listen(lambda data: self.queue.put(data))
 
     def on_world_tick(self):
-        print(f"[{self.name}] on world tick")
+        if self.debug:
+            print(f"[{self.name}] on world tick")
         if self.queue.qsize() > 0:
             self.callBack(self.queue.get())
         # print(f"Emitting ready for sensor {self.name}")
