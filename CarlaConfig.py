@@ -1,6 +1,6 @@
 import carla
 import configparser
-
+import queue
 
 class CarlaConfig:
     client: carla.Client
@@ -58,6 +58,19 @@ class CarlaConfig:
             self.sync = True
             world.apply_settings(settings)
             print("Sync mode turned on!")
+
+    @staticmethod
+    def loadPath() -> queue.Queue:
+        path = queue.Queue()
+        x = [-8.6, -121.8, -363.4, -463.6, -490]
+        y = [107.5, 395.2, 406, 333.6, 174]
+        for i in range(len(x)):
+            loc = carla.Location()
+            loc.x = x[i]
+            loc.y = y[i]
+            loc.z = 0.267
+            path.put(loc)
+        return path
 
 
 if __name__ == '__main__':

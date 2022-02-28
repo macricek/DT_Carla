@@ -1,3 +1,4 @@
+import queue
 import threading
 import carla
 import time
@@ -36,16 +37,21 @@ class Vehicle(QObject):
 
     # other
     debug: bool
+    goal: carla.Location
     fald: FALineDetector
+    path: queue.Queue
+    done: bool
 
     def __init__(self, environment, spawnLocation, id):
         super(Vehicle, self).__init__()
         self.threadID = id  # threadOBJ
         self.environment = environment
+        self.path = environment.config.loadPath()
         self.debug = self.environment.debug
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
         self.speed = 0
+        self.done = False
         self.getLocation()
 
         self.initAgent(spawnLocation.location)
@@ -55,13 +61,11 @@ class Vehicle(QObject):
             print("Vehicle {id} ready".format(id=self.threadID))
 
     def run(self):
-        if not self.me or self.sensorManager.isCollided():
+        if not self.me or self.sensorManager.isCollided() or self.checkGoal():
             self.terminate()
             return False
         # there will NN decide
-        control = self.agent.run_step()
-        control.manual_gear_shift = False
-        print(f"Control: {control}")
+        control = self.agentAction()
         self.sensorManager.processSensors()
 
         self.me.apply_control(control)
@@ -70,19 +74,16 @@ class Vehicle(QObject):
     def agentAction(self):
         '''
         Usage of agent to reach expected speed.
-        :return:
+        :return: carla.Control
         '''
         if self.agent.done():
-            if self.pts.empty():
-                return -1
-            self.goal = self.pts.get()
-            print(f"New waypoint: {self.goal}")
+            if self.debug:
+                print(f"New waypoint for agent: {self.goal}")
             self.agent.set_destination(self.goal)
-        print(f"Asked: {self.goal}")
-        self.processMeasures()
         control = self.agent.run_step()
         control.manual_gear_shift = False
-        print(f"Control: {control}")
+        if self.debug:
+            print(f"Control: {control}")
         return control
 
     def initAgent(self, spawnLoc):
@@ -97,11 +98,7 @@ class Vehicle(QObject):
             self.getLocation()
             time.sleep(0.01)
         self.agent = BasicAgent(self.me, target_speed=50)
-        spawnPoints = self.environment.map.get_spawn_points()
-        self.pts = Queue()
-        self.pts.put(spawnPoints[133].location)
-        self.pts.put(spawnPoints[129].location)
-        self.goal = self.pts.get()
+        self.goal = self.path.get()
         self.agent.set_destination(self.goal)
 
     def terminate(self):
@@ -109,11 +106,14 @@ class Vehicle(QObject):
         self.sensorManager.destroy()
         self.destroy()
 
-    def controlVehicle(self, throttle=0.0, steer=0.0, brake=0.0, hand_brake=False, reverse=False):
-        if self.debug:
-            print("{id}:[Control] T: {th}, S: {st}, B: {b}".format(id=self.threadID, th=throttle, st=steer, b=brake))
-        self.me.apply_control(carla.VehicleControl(throttle=throttle, steer=steer, brake=brake,
-                                                   hand_brake=hand_brake, reverse=reverse))
+    def checkGoal(self):
+        dist = self.diffToLocation(self.goal)
+        print(f"Distance to goal is: {dist}")
+        if dist < 0.2 or self.agent.done():
+            if not self.path.empty():
+                self.goal = self.path.get()
+            else:
+                return True
 
     def getLocation(self):
         '''
@@ -126,8 +126,15 @@ class Vehicle(QObject):
         return self.location
 
     def diffToLocation(self, location: carla.Location):
+        self.getLocation()
         dist = location.distance(self.location)
         return dist
+
+    @staticmethod
+    def errInLocation(l1: carla.Location, l2: carla.Location):
+        diffX = math.sqrt((l1.x - l2.x)**2)
+        diffY = math.sqrt((l1.y - l2.y)**2)
+        return diffX, diffY
 
     def getSpeed(self):
         '''
