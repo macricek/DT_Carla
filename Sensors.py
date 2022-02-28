@@ -28,6 +28,7 @@ class SensorManager(QtCore.QObject):
         self.count = 0
         self.readySensors = 0
         self.vehicle = vehicle
+        self.environment = environment
         self.config = environment.config
 
         self.ldCam = LineDetectorCamera(self, False, False)
@@ -90,7 +91,7 @@ class SensorManager(QtCore.QObject):
     def destroy(self):
         print(f"Invoking deletion of sensors of {self.vehicle.threadID} vehicle!")
         for sensor in self.sensors:
-            print(f"Deleting sensor {sensor.bp}")
+            print(f"Deleting sensor {sensor.name}")
             sensor.destroy()
 
 
@@ -237,6 +238,7 @@ class Camera(Sensor):
         self.image = None
         self.show = show
         self.drawingThread = None
+        self.stop = False
         self.bound_x = 0.5 + self.reference().bounding_box.extent.x
         self.bound_y = 0.5 + self.reference().bounding_box.extent.y
         self.bound_z = 0.5 + self.reference().bounding_box.extent.z
@@ -263,9 +265,17 @@ class Camera(Sensor):
             self.invokeDraw()
 
     def draw(self):
-        print(f"[{self.name}]Starting drawing thread")
+        '''
+        IN SEPARATE THREAD!
+        :return: Nothing
+        '''
+        print(f"[{self.name}]Starting drawing process")
         while not self.manager.isCollided():
             drawingImg = copy.copy(self.image)
+            if self.stop:
+                print("STOP")
+                self.stop = False
+                break
             cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), drawingImg)
             cv2.waitKey(1)
 
@@ -276,6 +286,15 @@ class Camera(Sensor):
 
     def isMain(self):
         return self.name == 'Main'
+
+    def destroy(self):
+        if self.drawingThread is not None:
+            self.show = False
+            self.stop = True  # break showing threads
+            while self.stop:
+                self.manager.environment.tick()
+            self.drawingThread = None
+        super(Camera, self).destroy()
 
 
 class LineDetectorCamera(Camera):
