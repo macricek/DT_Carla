@@ -1,13 +1,13 @@
 import copy
 import os
-import time
-
-from fastai.vision.all import *
 import torch
+
 import cv2
 import numpy as np
-from fastAI import *
 
+from fastAI import *
+from fastai.vision.all import *
+from CameraGeometry import *
 
 class FALineDetector:
     torchModel: str
@@ -17,15 +17,16 @@ class FALineDetector:
     right: ndarray
     mask: ndarray
 
-    def __init__(self, aug=True, learner=False, isMain=False):
+    def __init__(self, aug=True, isMain=False):
         self.importModels(aug, isMain)
-        self.useLearner = learner
-        self.device = torch.cuda.device(0)
+        self.device = "cuda"
         self.learner = load_learner(self.fastAiModel)
-        self.model = self.learner.model.cuda()
+        self.model = torch.load(self.torchModel).to(self.device)
         self.time = time.time()
-        self.initLearners(isMain)
         self.treshold = 0.25
+        self.cg = CameraGeometry()
+        self.cut_v, self.grid = self.cg.precompute_grid()
+        self.init(isMain)
 
     def importModels(self, aug, ismain):
         if ismain:
@@ -38,8 +39,11 @@ class FALineDetector:
             self.torchModel = self.torchModel.replace("model", "model_aug")
             self.fastAiModel = self.fastAiModel.replace("seg", "seg_aug")
 
-    def predictByLearner(self):
-        self.mask = np.array(self.learner.predict(self.image)[0])
+    # First detection takes 2-3s so make "fake" on beginning
+    def init(self, isMain):
+        self.loadImage(path="im.png" if isMain else "fastAI/im.png")
+        self.predict()
+        self.model.eval()
 
     def predict(self):
         with torch.no_grad():
@@ -48,16 +52,57 @@ class FALineDetector:
             _, self.left, self.right = F.softmax(self.model.forward(x_tensor), dim=1).cpu().numpy()[0]
 
     def integrateLines(self):
-        if self.useLearner:
-            self.image[self.model > self.treshold, :] = [0, 255, 0]  # use green separators
-        else:
-            self.image[self.left > self.treshold, :] = [0, 0, 255]  # blue for left
-            self.image[self.right > self.treshold, :] = [255, 0, 0]  # red for right
+        self.image[self.left > self.treshold, :] = [0, 0, 255]  # blue for left
+        self.image[self.right > self.treshold, :] = [255, 0, 0]  # red for right
 
-    def visualize(self):
+    def visualize(self, delay=1):
         self.integrateLines()
         cv2.imshow("Visualization of LineDetection", self.image)
-        cv2.waitKey(1)
+        cv2.waitKey(delay)
+
+    def visualizeLines(self):
+        cv2.imshow("Left Line", self.left)
+        cv2.imshow("Right Line", self.right)
+        cv2.waitKey()
+
+    def extractPolynomials(self):
+        self.predict()
+        leftPolynomial = self.fit(self.left)
+        rightPolynomial = self.fit(self.right)
+        return leftPolynomial, rightPolynomial
+
+    def fit(self, probs):
+        probs_flat = np.ravel(probs[self.cut_v:, :])
+        mask = probs_flat > 0.3
+        if mask.sum() > 0:
+            coeffs = np.polyfit(self.grid[:, 0][mask], self.grid[:, 1][mask], deg=3, w=probs_flat[mask])
+        else:
+            coeffs = np.array([0., 0., 0., 0.])
+        return np.poly1d(coeffs)
+
+    def extractLineForNeuralNetwork(self, line: ndarray):
+        #slowshit
+        xyp = []
+        for v in range(self.cg.image_height):
+            for u in range(self.cg.image_width):
+                X, Y, Z = self.cg.uv_to_roadXYZ_roadframe_iso8855(u, v)
+                xyp.append(np.array([X, Y, line[v, u]]))
+        xyp = np.array(xyp)
+        print("Here")
+        x_arr, y_arr, p_arr = xyp[:, 0], xyp[:, 1], xyp[:, 2]
+        mask = p_arr > 0.3
+        coeffs = np.polyfit(x_arr[mask], y_arr[mask], deg=3, w=p_arr[mask])
+        polynomial = np.poly1d(coeffs)
+
+        x = np.arange(0, 60, 0.1)
+        y = polynomial(x)
+        plt.plot(x, y)
+        plt.xlabel("x (m)")
+        plt.ylabel("y (m)")
+        plt.axis("equal")
+        #TODO: need to fast UP
+        #plt.show()
+        #out = np.empty([line.size])
 
     def loadImage(self, path=None, numpyArr=None):
         if path is not None:
@@ -66,11 +111,6 @@ class FALineDetector:
         else:
             self.image = numpyArr
 
-    # First detection takes 2-3s so make "fake" on beginning
-    def initLearners(self, isMain):
-        self.loadImage(path="im.png" if isMain else "fastAI/im.png")
-        self.predictByLearner() if self.useLearner else self.predict()
-
     def sinceLast(self):
         since = time.time() - self.time
         self.time = time.time()
@@ -78,7 +118,7 @@ class FALineDetector:
 
 
 if __name__ == '__main__':
-    fald = FALineDetector(aug=True, learner=False, isMain=True)
+    fald = FALineDetector(aug=True, isMain=True)
     d = os.path.join("../Kaggle/val/")
     for file in os.listdir("../Kaggle/val"):
         fileP = os.path.join(d + file)
@@ -86,5 +126,16 @@ if __name__ == '__main__':
         print(fald.sinceLast())
         fald.loadImage(path=fileP)
         fald.predict()
-        fald.visualize()
+        fald.visualize(10)
+        left, right = fald.extractPolynomials()
+        x = np.linspace(0, 60)
+        yl = left(x)
+        yr = right(x)
+        plt.plot(x, yl, label="yl")
+        plt.plot(x, yr, label="yr")
+        plt.xlabel("x (m)")
+        plt.ylabel("y (m)")
+        plt.legend()
+        plt.axis("equal")
+        plt.show()
         #time.sleep(0.5)

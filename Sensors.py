@@ -310,7 +310,7 @@ class LineDetectorCamera(Camera):
 
     def create(self):
         super(LineDetectorCamera, self).create()
-        self.where = carla.Transform(carla.Location(x=2.5, z=0.7))
+        self.where = carla.Transform(carla.Location(x=2.5, z=1.3), carla.Rotation(pitch=-5.0))
 
     def callBack(self, data):
         super().callBack(data)
