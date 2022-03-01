@@ -16,6 +16,7 @@ segmentationCamera=True
 collisionSensor=True
 obstacleDetector=False
 lidarSensor=False
+laneInvasionDetector=True
 
 [Points]
 x = [-8.6, -121.8, -363.4, -463.6, -490]

@@ -19,7 +19,6 @@ class SensorManager(QtCore.QObject):
     In case of Sync, we need to manage sensors when server ticks.
     If mode is async, we could simply rely on callbacks.
     """
-    readySignal = QtCore.pyqtSignal()
 
     def __init__(self, vehicle, environment):
         super().__init__()
@@ -31,7 +30,7 @@ class SensorManager(QtCore.QObject):
         self.environment = environment
         self.config = environment.config
 
-        self.ldCam = LineDetectorCamera(self, False, False)
+        self.ldCam = LineDetectorCamera(self, False, True)
         self.rgbCam = Camera(self, False, True)
         self.segCam = SegmentationCamera(self, False, False)
 
@@ -39,6 +38,7 @@ class SensorManager(QtCore.QObject):
         self.radar = RadarSensor(self, False)
         self.lidar = LidarSensor(self, False)
         self.obstacleDetector = ObstacleDetector(self, False)
+        self.laneInvasionDetector = LaneInvasionDetector(self, True)
 
         self.addToSensorsList()
         self.activate()
@@ -55,6 +55,8 @@ class SensorManager(QtCore.QObject):
             self.sensors.append(self.obstacleDetector)
         if convertStringToBool(settings.get("lidarsensor")):
             self.sensors.append(self.lidar)
+        if convertStringToBool(settings.get("laneinvasiondetector")):
+            self.sensors.append(self.laneInvasionDetector)
         # CAMERAS
         if convertStringToBool(settings.get("linedetectorcamera")):
             self.sensors.append(self.ldCam)
@@ -72,18 +74,6 @@ class SensorManager(QtCore.QObject):
     def processSensors(self):
         for sensor in self.sensors:
             sensor.on_world_tick()
-        print("on_world_tick done!")
-
-    def readySensor(self):
-        self.readySensors += 1
-        print(f"Got signal ready from {self.readySensors}/{self.count}")
-        self.checkForPossibleInvoke()
-
-    def checkForPossibleInvoke(self):
-        if self.readySensors == self.count:
-            print("All sensors ready")
-            self.readySensors = 0
-            self.readySignal.emit()
 
     def isCollided(self):
         return self.collision.isCollided()
@@ -181,7 +171,7 @@ class CollisionSensor(Sensor):
         super().__init__(manager, debug)
         self.name = "Collision"
         self.collided = False
-        self.bp = super().blueprints().find('sensor.other.collision')
+        self.bp = self.blueprints().find('sensor.other.collision')
         self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
     def callBack(self, data):
@@ -196,7 +186,7 @@ class ObstacleDetector(Sensor):
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
         self.name = "Obstacle"
-        self.bp = super().blueprints().find('sensor.other.obstacle')
+        self.bp = self.blueprints().find('sensor.other.obstacle')
         self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
     def callBack(self, data):
@@ -208,9 +198,9 @@ class LidarSensor(Sensor):
     def __init__(self, manager, debug=False):
         super().__init__(manager, debug)
         self.name = "Lidar"
-        self.bp = super().blueprints().find('sensor.lidar.ray_cast')
+        self.bp = self.blueprints().find('sensor.lidar.ray_cast')
         self.bp.channels = 1
-        self.where = carla.Transform(carla.Location(x=0, z=0))
+        self.where = carla.Transform(carla.Location(x=0, y=0, z=0))
 
     def callBack(self, data):
         if self.debug:
@@ -218,6 +208,36 @@ class LidarSensor(Sensor):
             for location in data:
                 print("{num}: {location}".format(num=number, location=location))
                 number += 1
+
+
+class LaneInvasionDetector(Sensor):
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
+        self.name = "LaneInvasion"
+        self.bp = self.blueprints().find('sensor.other.lane_invasion')
+        self.where = carla.Transform(carla.Location(x=0, y=0, z=0))
+
+        self.crossings = 0
+        self.lastCross = -5
+
+    def callBack(self, data):
+        frameCrossed = data.frame
+        if self.debug:
+            print(f"Vehicle {self.vehicle.threadID} crossed line!")
+            print(f"Crossed at frame {frameCrossed}, last cross was at {self.lastCross}")
+
+        if self.lastCross + 5 < frameCrossed:
+            self.crossings -= 1
+        else:
+            self.crossings += 1
+        self.lastCross = frameCrossed
+
+    def status(self):
+        print(f"Crossings: {self.crossings}, last at: {self.lastCross}")
+
+    def destroy(self):
+        self.status()
+        super(LaneInvasionDetector, self).destroy()
 
 
 class Camera(Sensor):
@@ -247,7 +267,7 @@ class Camera(Sensor):
 
     def create(self):
         typeOfCamera = self.options.get(self.name)[0]
-        self.bp = super().blueprints().find(typeOfCamera)
+        self.bp = self.blueprints().find(typeOfCamera)
         self.bp.set_attribute('image_size_x', f'{self.camWidth}')
         self.bp.set_attribute('image_size_y', f'{self.camHeight}')
         self.bp.set_attribute('fov', '110')

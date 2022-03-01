@@ -4,6 +4,7 @@ from PyQt5.QtCore import QObject, QThread, QCoreApplication
 import time
 sys.path.insert(0, "fastAI")
 from fastAI.fastAI import get_image_array_from_fn, label_func
+from fastAI.CameraGeometry import CameraGeometry
 
 
 class Main(QCoreApplication):

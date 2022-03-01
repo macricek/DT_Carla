@@ -7,7 +7,8 @@ import numpy as np
 
 from fastAI import *
 from fastai.vision.all import *
-from CameraGeometry import *
+from fastAI.CameraGeometry import CameraGeometry
+
 
 class FALineDetector:
     torchModel: str
