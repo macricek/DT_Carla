@@ -30,7 +30,7 @@ class SensorManager(QtCore.QObject):
         self.environment = environment
         self.config = environment.config
 
-        self.ldCam = LineDetectorCamera(self, False, True)
+        self.ldCam = LineDetectorCamera(self, False, False)
         self.rgbCam = Camera(self, False, True)
         self.segCam = SegmentationCamera(self, False, False)
 
@@ -77,6 +77,9 @@ class SensorManager(QtCore.QObject):
 
     def isCollided(self):
         return self.collision.isCollided()
+
+    def lines(self):
+        return self.ldCam.left, self.ldCam.right
 
     def destroy(self):
         print(f"Invoking deletion of sensors of {self.vehicle.threadID} vehicle!")
@@ -300,7 +303,7 @@ class Camera(Sensor):
             cv2.waitKey(1)
 
     def invokeDraw(self):
-        if self.drawingThread is None and self.show:
+        if self.show and self.drawingThread is None:
             self.drawingThread = threading.Thread(target=self.draw)
             self.drawingThread.start()
 
@@ -322,19 +325,39 @@ class LineDetectorCamera(Camera):
         super(LineDetectorCamera, self).__init__(manager, debug, show)
         self.name = 'LineDetection'
         self.create()
+        self.at = np.linspace(0, 30, num=5)
+        self.left = []
+        self.right = []
 
     def predict(self):
+        '''
+        loads image to LineDetector and predicts where are lines
+        :return: Nothing
+        '''
         self.lineDetector().loadImage(numpyArr=self.image)
         self.lineDetector().predict()
-        self.lineDetector().integrateLines()
+
+    def lines(self):
+        '''
+        Left and right points in range 0,30m (5 points->numPoints)
+        :return:
+        '''
+        ll, rl = self.lineDetector().extractPolynomials()
+        self.left = ll(self.at)
+        self.right = rl(self.at)
 
     def create(self):
         super(LineDetectorCamera, self).create()
         self.where = carla.Transform(carla.Location(x=2.5, z=1.3), carla.Rotation(pitch=-5.0))
 
+    def invokeDraw(self):
+        self.lineDetector().integrateLines()
+        super(LineDetectorCamera, self).invokeDraw()
+
     def callBack(self, data):
         super().callBack(data)
         self.predict()
+        self.lines()
         self.invokeDraw()
 
 

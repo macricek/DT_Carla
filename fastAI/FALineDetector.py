@@ -8,7 +8,7 @@ import numpy as np
 from fastAI import *
 from fastai.vision.all import *
 from fastAI.CameraGeometry import CameraGeometry
-
+#from CameraGeometry import CameraGeometry
 
 class FALineDetector:
     torchModel: str
@@ -67,7 +67,6 @@ class FALineDetector:
         cv2.waitKey()
 
     def extractPolynomials(self):
-        self.predict()
         leftPolynomial = self.fit(self.left)
         rightPolynomial = self.fit(self.right)
         return leftPolynomial, rightPolynomial
@@ -129,7 +128,7 @@ if __name__ == '__main__':
         fald.predict()
         fald.visualize(10)
         left, right = fald.extractPolynomials()
-        x = np.linspace(0, 60)
+        x = np.linspace(0, 30, num=6)
         yl = left(x)
         yr = right(x)
         plt.plot(x, yl, label="yl")
