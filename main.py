@@ -11,9 +11,12 @@ class Main(QCoreApplication):
     def __init__(self):
         super(Main, self).__init__([])
         self.time = time.time()
-        self.carlaEnvironment = CarlaEnvironment(1, self,  True)
+        self.carlaEnvironment = CarlaEnvironment(self,  True)
+        self.carlaEnvironment.trainingRide()
+        #self.carlaEnvironment.testRide()
 
     def terminate(self):
+        print("Terminating MAIN!")
         try:
             del self.carlaEnvironment
         finally:
@@ -22,6 +25,7 @@ class Main(QCoreApplication):
     def signal_handler(self, sig, frame):
         print('You pressed Ctrl+C!')
         sys.exit(0)
+
 
 if __name__ == '__main__':
     mainApp = Main()

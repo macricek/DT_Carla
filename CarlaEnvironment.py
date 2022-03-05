@@ -1,12 +1,11 @@
 import glob
 import os
-import random
 import sys
 import pygame
-import time
 from Vehicle import Vehicle
 from CarlaConfig import CarlaConfig
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
+from NeuroEvolution import NeuroEvolution
 
 # from Carla doc
 try:
@@ -22,73 +21,122 @@ import carla
 class CarlaEnvironment(QObject):
     debug: bool
     config: CarlaConfig
+    NE: NeuroEvolution
     # lists
     vehicles = []
-    threads = []
-    maxId = 5
     # members
-    client = carla.Client
-    world = carla.World
-    blueprints = carla.BlueprintLibrary
+    client: carla.Client
+    world: carla.World
+    blueprints: carla.BlueprintLibrary
+    trafficManager: carla.TrafficManager
     # PyQt signals
     done = pyqtSignal()
 
-    def __init__(self, numVehicles, main, debug=False):
+    def __init__(self, main, debug=False):
         super(CarlaEnvironment, self).__init__()
         self.id = 0
         self.debug = debug
-        self.numVehicles = numVehicles
+        self.main = main
+        self.clock = pygame.time.Clock()
+
         self.client = carla.Client('localhost', 2000)
         self.config = CarlaConfig(self.client)
+        self.NE = NeuroEvolution(self.config.readSection("NE"))
+        self.MAX_ID = self.NE.popSize
+
         self.trafficManager = self.client.get_trafficmanager()
         self.trafficManager.set_synchronous_mode(self.config.sync)
-        self.main = main
         self.world = self.client.get_world()
-        self.clock = pygame.time.Clock()
         self.blueprints = self.world.get_blueprint_library()
         self.map = self.world.get_map()
-        self.spawnVehicles(numVehicles)
+
         print("INIT DONE")
-        time.sleep(1)
-        self.run()
 
     def tick(self):
-        print("TICK!")
+        '''
+        TICKING the world
+        :return:
+        '''
+        if self.debug:
+            print("TICK!")
         self.world.tick()
 
-    def run(self):
-        print("Starting RUN")
+    def testRide(self):
+        self.spawnVehicleToStart()
+        '''
+        Spawn one car and "simulate" ride through waypoints
+        :return: Nothing
+        '''
+        print("Starting test ride")
         while True:
             try:
                 self.clock.tick()
                 self.world.tick()
                 if self.runStep():
                     self.main.terminate()
+                    break
             except:
                 self.main.terminate()
 
-    def spawnVehicles(self, numVehicles):
-        for i in range(0, numVehicles):
-            spawnPoints = self.map.get_spawn_points()
-            start = spawnPoints[i+99] #spawnPoints[int(random.random()*len(spawnPoints))]
-            vehicle = Vehicle(self, start, id=self.id)
-            self.vehicles.append(vehicle)
-            self.id += 1
+    def trainingRide(self):
+        '''
+        Handles whole process of training!
+        :return:
+        '''
+        print("Starting training")
+        for _ in range(2):
+            self.spawnVehicleToStart()
+            while True:
+                try:
+                    self.clock.tick()
+                    self.world.tick()
+                    if self.runStep():
+                        # HERE we need to record smth from vehicle.
+                        print(f"Vehicle {self.vehicles[0].vehicleID} done!")
+                        self.deleteFirstVehicle()
+                        break
+                except:
+                    self.main.terminate()
+        self.main.terminate()
+
+    def spawnVehicleToStart(self):
+        '''
+        Spawn vehicle to starting spot (spawnPoint[99]) and create it.
+        :return: Nothing
+        '''
+        spawnPoints = self.map.get_spawn_points()
+        start = spawnPoints[99]
+        vehicle = Vehicle(self, start, id=self.id)
+        self.vehicles.append(vehicle)
+        self.handleVehicleId()
 
     def runStep(self):
+        '''
+        Ask all available vehicles to do their job.
+        :return:
+        '''
         end = False
         for vehicle in self.vehicles:
             if not vehicle.run():
-                self.deleteVehicle(vehicle)
                 end = True
         return end
+
+    def handleVehicleId(self):
+        if self.id < self.MAX_ID:
+            self.id += 1
+        else:
+            self.id = 0
+
+    def deleteFirstVehicle(self):
+        self.deleteVehicle(self.vehicles[0])
 
     def deleteVehicle(self, vehicle):
         for v in self.vehicles:
             if v == vehicle:
                 try:
+                    print(f"Deleting vehicle {vehicle.vehicleID}")
+                    v.destroy()
                     self.vehicles.remove(vehicle)
-                    del vehicle
                 except:
                     print("Vehicle already out")
 
@@ -96,13 +144,11 @@ class CarlaEnvironment(QObject):
         for vehicle in self.vehicles:
             try:
                 vehicle.destroy()
+                self.vehicles.remove(vehicle)
+                del vehicle
                 print("Removing vehicle!")
             except:
                 print("Already deleted!")
-        try:
-            del self.threads
-        except:
-            print("No threads")
 
     def __del__(self):
         self.deleteAll()

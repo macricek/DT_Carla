@@ -8,7 +8,7 @@ class CarlaConfig:
     def __init__(self, client):
         self.client = client
         self.parser = configparser.ConfigParser()
-        self.path = "config.txt"
+        self.path = "config.ini"
         self.sync = client.get_world().get_settings().synchronous_mode
         self.apply()
 
@@ -77,8 +77,7 @@ if __name__ == '__main__':
     client = carla.Client('localhost', 2000)
     client.set_timeout(10)
     conf = CarlaConfig(client)
-    s = conf.readSection("Sensors")
+    s = conf.readSection("NE")
     print(s)
-    print(s.get("radarsensor"))
-    print(bool(s.get("radarsensor")))
-
+    from NeuroEvolution import NeuroEvolution
+    testNe = NeuroEvolution(s)

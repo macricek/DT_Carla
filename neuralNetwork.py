@@ -3,6 +3,11 @@ import numpy as np
 
 
 class NeuralNetwork:
+    '''
+    Basic MLP neural network implementation
+    @author: Marko Chylik
+    @2022
+    '''
     nInput = 0
     nHiddenLayers = 0
     nHidden = None
@@ -12,6 +17,13 @@ class NeuralNetwork:
     weights = None
 
     def __init__(self, nInput, nHiddenInL, nOutput, weights=None):
+        '''
+        Constructor of NN.
+        :param nInput: number of inputs [INT]
+        :param nHiddenInL: number of hidden neurons [np.array]
+        :param nOutput: number of outputs [INT]
+        :param weights: array of weights -> using method setWeights to update weights.
+        '''
         self.nInput = nInput
         self.nHiddenLayers = nHiddenInL.shape[0]
         self.nHidden = nHiddenInL
@@ -20,10 +32,20 @@ class NeuralNetwork:
         self.weights = weights
 
     def setWeights(self, weights):
+        '''
+        Update weights to new value
+        :param weights: np.array of correct size
+        :return: Nothing
+        '''
+        assert weights.shape[1] == self.szWeights + self.szBiases
         self.weights = weights
 
     def getNumOfNeededElements(self):
-        szW = self.nInput * self.nHidden[0] + self.nOutput * self.nHidden[-1]
+        '''
+        Calculate number of needed weights and biases to fill in NN.
+        :return: size of weights, biases [INT, INT]
+        '''
+        szW = self.nInput * self.nHidden[0] + self.nOutput * self.nHidden[1]
         szB = self.nInput + self.nOutput + self.nHidden[-1]
         for i in range(0, self.nHiddenLayers - 1):
             szW += self.nHidden[i] * self.nHidden[i + 1]
@@ -31,6 +53,10 @@ class NeuralNetwork:
         return szW, szB
 
     def parse(self):
+        '''
+        Parse self.weights array to more arrays that'll be used in NN calculations
+        :return: Weights, Biases
+        '''
         assert self.weights.shape[1] == self.szWeights + self.szBiases
         # weights index
         idxW1end = self.nInput * self.nHidden[0]
@@ -61,6 +87,11 @@ class NeuralNetwork:
         return W1, W2, W3, BI, BH1, BH2, BO
 
     def run(self, inputs):
+        '''
+        Run one step of NN
+        :param inputs: array of inputs [-1;1]
+        :return: outputs array
+        '''
         #there needs to be preprocessing inputs
         assert inputs.shape[0] == self.nInput
         W1, W2, W3, BI, BH1, BH2, BO = self.parse()

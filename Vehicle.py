@@ -1,5 +1,3 @@
-import queue
-import threading
 import carla
 import time
 import random
@@ -7,7 +5,6 @@ from PyQt5.QtCore import QObject, pyqtSignal
 from Sensors import *
 from queue import Queue
 import sys
-from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 from agents.navigation.basic_agent import BasicAgent
 
 from fastAI.FALineDetector import FALineDetector
@@ -44,13 +41,14 @@ class Vehicle(QObject):
 
     def __init__(self, environment, spawnLocation, id):
         super(Vehicle, self).__init__()
-        self.threadID = id  # threadOBJ
+        self.vehicleID = id
         self.environment = environment
         self.path = environment.config.loadPath()
         self.debug = self.environment.debug
         self.fald = FALineDetector()
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
         self.speed = 0
+        self.vehicleStopped = 0
         self.done = False
         self.getLocation()
 
@@ -58,11 +56,14 @@ class Vehicle(QObject):
         self.sensorManager = SensorManager(self, self.environment)
 
         if self.debug:
-            print("Vehicle {id} ready".format(id=self.threadID))
+            print("Vehicle {id} ready".format(id=self.vehicleID))
 
     def run(self):
-        if not self.me or self.sensorManager.isCollided() or self.checkGoal():
-            self.terminate()
+        '''
+        Do a tick response for vehicle object
+        :return: True, if vehicle is alive; False, if ending conditions were MET
+        '''
+        if not self.me or self.sensorManager.isCollided() or self.checkGoal() or self.standing():
             return False
         # there will NN decide
         control = self.agentAction()
@@ -101,12 +102,12 @@ class Vehicle(QObject):
         self.goal = self.path.get()
         self.agent.set_destination(self.goal)
 
-    def terminate(self):
-        print("TERMINATE")
-        self.sensorManager.destroy()
-        self.destroy()
-
     def checkGoal(self):
+        '''
+        Checks, how far is vehicle from current goal. If goal is reached, new waypoint is loaded. When no more waypoints
+        it will return True as signing that current task is done.
+        :return: bool
+        '''
         dist = self.diffToLocation(self.goal)
         print(f"Distance to goal is: {dist}")
         if dist < 0.2 or self.agent.done():
@@ -114,6 +115,23 @@ class Vehicle(QObject):
                 self.goal = self.path.get()
             else:
                 return True
+
+    def standing(self):
+        '''
+        check, if vehicle is moving or standing. If standing for longer period (100+ticks) returns True
+        :return: bool
+        '''
+        speed = self.getSpeed()
+        if speed < 5:
+            self.vehicleStopped += 1
+        else:
+            self.vehicleStopped = 0
+
+        if self.vehicleStopped >= 100:
+            print("VEHICLE IS STOPPED!")
+            return True
+        else:
+            return False
 
     def getLocation(self):
         '''
@@ -162,7 +180,7 @@ class Vehicle(QObject):
         x = vector.x
         y = vector.y
         z = vector.z
-        print("{id}:[{t}] X: {x}, Y: {y}, Z: {z}".format(id=self.threadID, t=type, x=x, y=y, z=z))
+        print("{id}:[{t}] X: {x}, Y: {y}, Z: {z}".format(id=self.vehicleID, t=type, x=x, y=y, z=z))
 
     def destroy(self):
         '''
@@ -170,9 +188,10 @@ class Vehicle(QObject):
         :return: none
         '''
         if self.debug:
-            print("Destroying Vehicle {id}".format(id=self.threadID))
+            print("Destroying Vehicle {id}".format(id=self.vehicleID))
         try:
             self.sensorManager.destroy()
             self.me.destroy()
-        finally:
-            self.environment.deleteVehicle(self)
+            self.environment.tick()
+        except:
+            print(f"Error in destroying of {self.vehicleID}")

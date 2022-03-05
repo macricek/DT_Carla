@@ -80,30 +80,6 @@ class FALineDetector:
             coeffs = np.array([0., 0., 0., 0.])
         return np.poly1d(coeffs)
 
-    def extractLineForNeuralNetwork(self, line: ndarray):
-        #slowshit
-        xyp = []
-        for v in range(self.cg.image_height):
-            for u in range(self.cg.image_width):
-                X, Y, Z = self.cg.uv_to_roadXYZ_roadframe_iso8855(u, v)
-                xyp.append(np.array([X, Y, line[v, u]]))
-        xyp = np.array(xyp)
-        print("Here")
-        x_arr, y_arr, p_arr = xyp[:, 0], xyp[:, 1], xyp[:, 2]
-        mask = p_arr > 0.3
-        coeffs = np.polyfit(x_arr[mask], y_arr[mask], deg=3, w=p_arr[mask])
-        polynomial = np.poly1d(coeffs)
-
-        x = np.arange(0, 60, 0.1)
-        y = polynomial(x)
-        plt.plot(x, y)
-        plt.xlabel("x (m)")
-        plt.ylabel("y (m)")
-        plt.axis("equal")
-        #TODO: need to fast UP
-        #plt.show()
-        #out = np.empty([line.size])
-
     def loadImage(self, path=None, numpyArr=None):
         if path is not None:
             self.image = cv2.imread(path)

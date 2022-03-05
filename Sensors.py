@@ -38,7 +38,7 @@ class SensorManager(QtCore.QObject):
         self.radar = RadarSensor(self, False)
         self.lidar = LidarSensor(self, False)
         self.obstacleDetector = ObstacleDetector(self, False)
-        self.laneInvasionDetector = LaneInvasionDetector(self, True)
+        self.laneInvasionDetector = LaneInvasionDetector(self, False)
 
         self.addToSensorsList()
         self.activate()
@@ -82,7 +82,7 @@ class SensorManager(QtCore.QObject):
         return self.ldCam.left, self.ldCam.right
 
     def destroy(self):
-        print(f"Invoking deletion of sensors of {self.vehicle.threadID} vehicle!")
+        print(f"Invoking deletion of sensors of {self.vehicle.vehicleID} vehicle!")
         for sensor in self.sensors:
             print(f"Deleting sensor {sensor.name}")
             sensor.destroy()
@@ -179,7 +179,7 @@ class CollisionSensor(Sensor):
 
     def callBack(self, data):
         self.collided = True
-        print("Vehicle {id} collided!".format(id=self.vehicle.threadID))
+        print("Vehicle {id} collided!".format(id=self.vehicle.vehicleID))
 
     def isCollided(self):
         return self.collided
@@ -226,7 +226,7 @@ class LaneInvasionDetector(Sensor):
     def callBack(self, data):
         frameCrossed = data.frame
         if self.debug:
-            print(f"Vehicle {self.vehicle.threadID} crossed line!")
+            print(f"Vehicle {self.vehicle.vehicleID} crossed line!")
             print(f"Crossed at frame {frameCrossed}, last cross was at {self.lastCross}")
 
         if self.lastCross + 5 < frameCrossed:
@@ -299,7 +299,7 @@ class Camera(Sensor):
                 print("STOP")
                 self.stop = False
                 break
-            cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), drawingImg)
+            cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.vehicleID, n=self.name), drawingImg)
             cv2.waitKey(1)
 
     def invokeDraw(self):

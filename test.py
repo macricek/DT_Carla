@@ -82,4 +82,4 @@ def compare(numImages):
 
 if __name__ == '__main__':
     cc = CarlaEnvironment(1, True)
-    cc.run()
+    cc.testRide()
