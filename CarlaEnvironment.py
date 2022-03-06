@@ -6,6 +6,7 @@ from Vehicle import Vehicle
 from CarlaConfig import CarlaConfig
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
 from NeuroEvolution import NeuroEvolution
+from fastAI.FALineDetector import FALineDetector
 
 # from Carla doc
 try:
@@ -42,6 +43,7 @@ class CarlaEnvironment(QObject):
         self.client = carla.Client('localhost', 2000)
         self.config = CarlaConfig(self.client)
         self.NE = NeuroEvolution(self.config.readSection("NE"))
+        self.faLineDetector = FALineDetector()
         self.MAX_ID = self.NE.popSize
 
         self.trafficManager = self.client.get_trafficmanager()
@@ -84,7 +86,7 @@ class CarlaEnvironment(QObject):
         :return:
         '''
         print("Starting training")
-        for _ in range(2):
+        for _ in range(1):
             self.spawnVehicleToStart()
             while True:
                 try:
@@ -150,9 +152,14 @@ class CarlaEnvironment(QObject):
             except:
                 print("Already deleted!")
 
-    def __del__(self):
+    def terminate(self):
         self.deleteAll()
         print("Turning off sync mode")
         self.trafficManager.set_synchronous_mode(False)
         self.config.turnOffSync()
 
+    def __del__(self):
+        try:
+            self.terminate()
+        except:
+            print("Error in deleting CarlaEnv")

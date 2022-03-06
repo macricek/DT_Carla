@@ -7,9 +7,8 @@ from queue import Queue
 import sys
 from agents.navigation.basic_agent import BasicAgent
 
-from fastAI.FALineDetector import FALineDetector
 
-## global constants
+# global constants
 MAX_TIME_CAR = 5
 CAM_HEIGHT = 512
 CAM_WIDTH = 1024
@@ -35,7 +34,6 @@ class Vehicle(QObject):
     # other
     debug: bool
     goal: carla.Location
-    fald: FALineDetector
     path: queue.Queue
     done: bool
 
@@ -45,7 +43,7 @@ class Vehicle(QObject):
         self.environment = environment
         self.path = environment.config.loadPath()
         self.debug = self.environment.debug
-        self.fald = FALineDetector()
+        self.fald = self.environment.faLineDetector
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
         self.speed = 0
         self.vehicleStopped = 0

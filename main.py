@@ -18,7 +18,7 @@ class Main(QCoreApplication):
     def terminate(self):
         print("Terminating MAIN!")
         try:
-            del self.carlaEnvironment
+            self.carlaEnvironment.terminate()
         finally:
             sys.exit(0)
 
