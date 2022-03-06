@@ -86,7 +86,7 @@ class CarlaEnvironment(QObject):
         :return: Nothing
         '''
         print("Starting training")
-        for _ in range(1):
+        for _ in range(self.MAX_ID):
             self.spawnVehicleToStart(False)
             while True:
                 try:
@@ -96,7 +96,6 @@ class CarlaEnvironment(QObject):
                     if len(listV) > 0:
                         for veh in listV:
                             self.NE.singleFit(veh)
-                            crosses, err, collisions = veh
                             print(f"Vehicle {veh.vehicleID} done!")
                             self.deleteVehicle(veh)
                         break

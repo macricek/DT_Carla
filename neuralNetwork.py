@@ -37,7 +37,7 @@ class NeuralNetwork:
         :param weights: np.array of correct size
         :return: Nothing
         '''
-        assert weights.shape[1] == self.szWeights + self.szBiases
+        assert weights.shape[0] == self.szWeights + self.szBiases
         self.weights = weights
 
     def getNumOfNeededElements(self):
@@ -57,7 +57,7 @@ class NeuralNetwork:
         Parse self.weights array to more arrays that'll be used in NN calculations
         :return: Weights, Biases
         '''
-        assert self.weights.shape[1] == self.szWeights + self.szBiases
+        assert self.weights.shape[0] == self.szWeights + self.szBiases
         # weights index
         idxW1end = self.nInput * self.nHidden[0]
         idxW2start = idxW1end
@@ -73,17 +73,17 @@ class NeuralNetwork:
         idxBH2end = idxBH2start + self.nHidden[1]
         idxBOstart = idxBH2end
         idxBOend = idxBOstart + self.nOutput
-        v = self.weights.shape[1]
-        assert idxBOend == self.weights.shape[1]
+        v = self.weights.shape[0]
+        assert idxBOend == self.weights.shape[0]
         # weights parsing
-        W1 = np.reshape(self.weights[0, 0:idxW1end], (self.nInput, self.nHidden[0]))
-        W2 = np.reshape(self.weights[0, idxW2start:idxW2end], (self.nHidden[0], self.nHidden[1]))
-        W3 = np.reshape(self.weights[0, idxW3start:idxW3end], (self.nHidden[1], self.nOutput))
+        W1 = np.reshape(self.weights[0:idxW1end], (self.nInput, self.nHidden[0]))
+        W2 = np.reshape(self.weights[idxW2start:idxW2end], (self.nHidden[0], self.nHidden[1]))
+        W3 = np.reshape(self.weights[idxW3start:idxW3end], (self.nHidden[1], self.nOutput))
         # biases parsing
-        BI = self.weights[0, idxBIstart:idxBIend]
-        BH1 = self.weights[0, idxBH1start:idxBH1end]
-        BH2 = self.weights[0, idxBH2start:idxBH2end]
-        BO = self.weights[0, idxBOstart:idxBOend]
+        BI = self.weights[idxBIstart:idxBIend]
+        BH1 = self.weights[idxBH1start:idxBH1end]
+        BH2 = self.weights[idxBH2start:idxBH2end]
+        BO = self.weights[idxBOstart:idxBOend]
         return W1, W2, W3, BI, BH1, BH2, BO
 
     def run(self, inputs, limit):

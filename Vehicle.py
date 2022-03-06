@@ -54,6 +54,7 @@ class Vehicle(QObject):
         self.fald = self.environment.faLineDetector
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
         self.nn = neuralNetwork
+
         self.speed = 0
         self.vehicleStopped = 0
         self.steer = 0
@@ -65,13 +66,15 @@ class Vehicle(QObject):
 
         if self.debug:
             print("Vehicle {id} ready".format(id=self.vehicleID))
+        self.startTime = time.time()
 
     def run(self):
         '''
         Do a tick response for vehicle object
         :return: True, if vehicle is alive; False, if ending conditions were MET
         '''
-        if not self.me or self.sensorManager.isCollided() or self.checkGoal() or self.standing():
+        if not self.me or self.sensorManager.isCollided() or self.checkGoal() or self.standing() or self.inCycle():
+            print("bumbum")
             return False
         # there will NN decide
         self.sensorManager.processSensors()
@@ -127,11 +130,11 @@ class Vehicle(QObject):
             neuralSteer = agentSteer
         else:
             inputs = self.nn.normalizeLinesInputs(left, right)
-            neuralSteer = self.steer + self.nn.run(inputs, 0.1)
+            neuralSteer = self.steer + self.nn.run(inputs, 0.1)[0][0]
 
         if neuralSteer > 1:
             self.steer = 1
-        elif neuralSteer < 1:
+        elif neuralSteer < -1:
             self.steer = -1
         else:
             self.steer = neuralSteer
@@ -168,6 +171,13 @@ class Vehicle(QObject):
 
         if self.vehicleStopped >= 100:
             print("VEHICLE IS STOPPED!")
+            return True
+        else:
+            return False
+
+    def inCycle(self):
+        now = time.time()
+        if now > 150 + self.startTime:
             return True
         else:
             return False
