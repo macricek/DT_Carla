@@ -64,7 +64,7 @@ class CarlaEnvironment(QObject):
         self.world.tick()
 
     def testRide(self):
-        self.spawnVehicleToStart()
+        self.spawnVehicleToStart(True)
         '''
         Spawn one car and "simulate" ride through waypoints
         :return: Nothing
@@ -74,7 +74,7 @@ class CarlaEnvironment(QObject):
             try:
                 self.clock.tick()
                 self.world.tick()
-                if self.runStep():
+                if len(self.runStep()) > 0:
                     self.main.terminate()
                     break
             except:
@@ -82,33 +82,45 @@ class CarlaEnvironment(QObject):
 
     def trainingRide(self):
         '''
-        Handles whole process of training!
-        :return:
+        Handles one epoch of training!
+        :return: Nothing
         '''
         print("Starting training")
         for _ in range(1):
-            self.spawnVehicleToStart()
+            self.spawnVehicleToStart(False)
             while True:
                 try:
                     self.clock.tick()
                     self.world.tick()
-                    if self.runStep():
-                        # HERE we need to record smth from vehicle.
-                        print(f"Vehicle {self.vehicles[0].vehicleID} done!")
-                        self.deleteFirstVehicle()
+                    listV = self.runStep()
+                    if len(listV) > 0:
+                        for veh in listV:
+                            self.NE.singleFit(veh)
+                            crosses, err, collisions = veh
+                            print(f"Vehicle {veh.vehicleID} done!")
+                            self.deleteVehicle(veh)
                         break
                 except:
+                    self.NE.finishNeuroEvolutionProcess()
                     self.main.terminate()
-        self.main.terminate()
 
-    def spawnVehicleToStart(self):
+    def train(self):
+        for i in range(self.NE.numCycle):
+            print(f"Starting EPOCH {i}/{self.NE.numCycle-1}")
+            # run one training epoch
+            self.trainingRide()
+            self.NE.perform()
+        self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
+
+    def spawnVehicleToStart(self, vehDebug):
         '''
         Spawn vehicle to starting spot (spawnPoint[99]) and create it.
         :return: Nothing
         '''
         spawnPoints = self.map.get_spawn_points()
         start = spawnPoints[99]
-        vehicle = Vehicle(self, start, id=self.id)
+        vehicle = Vehicle(self, start, id=self.id, neuralNetwork=self.NE.getNeuralNetwork(self.id))
+        vehicle.debug = vehDebug
         self.vehicles.append(vehicle)
         self.handleVehicleId()
 
@@ -117,20 +129,17 @@ class CarlaEnvironment(QObject):
         Ask all available vehicles to do their job.
         :return:
         '''
-        end = False
+        endedVehicles = []
         for vehicle in self.vehicles:
             if not vehicle.run():
-                end = True
-        return end
+                endedVehicles.append(vehicle)
+        return endedVehicles
 
     def handleVehicleId(self):
-        if self.id < self.MAX_ID:
+        if self.id < self.MAX_ID - 1:
             self.id += 1
         else:
             self.id = 0
-
-    def deleteFirstVehicle(self):
-        self.deleteVehicle(self.vehicles[0])
 
     def deleteVehicle(self, vehicle):
         for v in self.vehicles:

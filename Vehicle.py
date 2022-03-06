@@ -2,6 +2,8 @@ import carla
 import time
 import random
 from PyQt5.QtCore import QObject, pyqtSignal
+
+import neuralNetwork
 from Sensors import *
 from queue import Queue
 import sys
@@ -36,8 +38,14 @@ class Vehicle(QObject):
     goal: carla.Location
     path: queue.Queue
     done: bool
+    nn: neuralNetwork.NeuralNetwork
 
-    def __init__(self, environment, spawnLocation, id):
+    # record quality of driving
+    __crossings = 0
+    __errDec = 0
+    __collisions = 0
+
+    def __init__(self, environment, spawnLocation, neuralNetwork, id):
         super(Vehicle, self).__init__()
         self.vehicleID = id
         self.environment = environment
@@ -45,8 +53,10 @@ class Vehicle(QObject):
         self.debug = self.environment.debug
         self.fald = self.environment.faLineDetector
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
+        self.nn = neuralNetwork
         self.speed = 0
         self.vehicleStopped = 0
+        self.steer = 0
         self.done = False
         self.getLocation()
 
@@ -64,9 +74,8 @@ class Vehicle(QObject):
         if not self.me or self.sensorManager.isCollided() or self.checkGoal() or self.standing():
             return False
         # there will NN decide
-        control = self.agentAction()
         self.sensorManager.processSensors()
-
+        control = self.getControl()
         self.me.apply_control(control)
         return True
 
@@ -99,6 +108,38 @@ class Vehicle(QObject):
         self.agent = BasicAgent(self.me, target_speed=50)
         self.goal = self.path.get()
         self.agent.set_destination(self.goal)
+
+    def record(self):
+        self.__crossings = self.sensorManager.laneInvasionDetector.crossings
+        self.__collisions = 1 if self.sensorManager.isCollided() else 0
+
+        return self.__crossings, self.__errDec, self.__collisions
+
+    def recordEachStep(self, agentSteer):
+        self.__errDec += abs(agentSteer - self.steer)
+
+    def getControl(self):
+        control = self.agentAction()
+        agentSteer = control.steer
+        left, right = self.sensorManager.lines()
+        if np.sum(left) == 0 or np.sum(right) == 0:
+            print("Lines wasn't detected correctly")
+            neuralSteer = agentSteer
+        else:
+            inputs = self.nn.normalizeLinesInputs(left, right)
+            neuralSteer = self.steer + self.nn.run(inputs, 0.1)
+
+        if neuralSteer > 1:
+            self.steer = 1
+        elif neuralSteer < 1:
+            self.steer = -1
+        else:
+            self.steer = neuralSteer
+
+        self.recordEachStep(agentSteer)
+        control.steer = self.steer
+
+        return control
 
     def checkGoal(self):
         '''

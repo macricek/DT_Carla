@@ -10,6 +10,7 @@ from fastai.vision.all import *
 from fastAI.CameraGeometry import CameraGeometry
 #from CameraGeometry import CameraGeometry
 
+
 class FALineDetector:
     torchModel: str
     fastAiModel: str

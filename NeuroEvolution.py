@@ -1,9 +1,11 @@
 import numpy as np
 import time
+
+import Vehicle
 import genetic
 from neuralNetwork import NeuralNetwork as NN
 from PyQt5.QtCore import QObject
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 
 class NeuroEvolution(QObject):
@@ -44,13 +46,21 @@ class NeuroEvolution(QObject):
         # initial params
         self.pop = genetic.genrpop(self.popSize, initSpace)
         self.minFit = []
-        self.fit = np.zeros((1, 50))
-        self.cycle = 0
+        self.fit = np.ones((1, 50)) * np.inf
 
-    def fitness(self):
-        self.minFit.append(min(self.fit))
+    def singleFit(self, vehicle: Vehicle.Vehicle):
+        '''
+        Calculate fit value of single vehicle solution
+        :param vehicle: Vehicle object
+        :return: Nothing
+        '''
+        at = vehicle.vehicleID
+        crossings, errDec, collisions = vehicle.record()
+        self.fit[0, at] = crossings * 2 + errDec * 0.1 + collisions * 10000
 
     def perform(self):
+        self.minFit.append(min(self.fit))
+
         Best = genetic.selsort(self.pop, self.fit, 1)
         BestPop = genetic.selsort(self.pop, self.fit, self.nBest)
         WorkPop1 = genetic.selrand(self.pop, self.fit, self.nWork1)
@@ -62,7 +72,15 @@ class NeuroEvolution(QObject):
         BestPop = genetic.muta(BestPop, 0.01, self.amp, self.space)
         self.pop = np.concatenate((Best, SortPop, BestPop, WorkPop, NPop), axis=0)
 
-        self.fitness()
+    def getNeuralNetwork(self, at):
+        '''
+        Set weights to NN at argument
+        :param at: which part of population will fill the weights
+        :return: NN object
+        '''
+        weights = self.pop[at, :]
+        self.nn.setWeights(weights)
+        return self.nn
 
     def calculateParamsOfGeneticAlgorithm(self, conf: dict):
         '''
@@ -78,3 +96,18 @@ class NeuroEvolution(QObject):
         self.nWork1 = int(work1Percentage * popSizeWithoutBest)
         self.nWork2 = int(work2Percentage * popSizeWithoutBest)
         self.nGenerate = popSizeWithoutBest - self.nBest - self.nWork1 - self.nWork2
+
+    def plotEvolution(self):
+        plot = plt.figure(1)
+        plt.plot(np.asarray(self.minFit))
+        plt.title("Priebeh evolúcie fitness funkcie")
+        plt.xlabel("Cykly")
+        plt.ylabel("Hodnota fitness funkcie")
+        plt.savefig("figs/GA.png")
+        plt.show()
+
+    def finishNeuroEvolutionProcess(self):
+        Best = genetic.selsort(self.pop, self.fit, 1)
+        np.savetxt('best.csv', Best, delimiter=',')
+        #data = np.loadtxt('data.csv', delimiter=',') // LOADING afterwards
+        self.plotEvolution()

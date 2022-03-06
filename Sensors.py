@@ -79,7 +79,10 @@ class SensorManager(QtCore.QObject):
         return self.collision.isCollided()
 
     def lines(self):
-        return self.ldCam.left, self.ldCam.right
+        retLeft = copy.deepcopy(self.ldCam.left)
+        retRight = copy.deepcopy(self.ldCam.right)
+        self.ldCam.resetLines()
+        return retLeft, retRight
 
     def destroy(self):
         print(f"Invoking deletion of sensors of {self.vehicle.vehicleID} vehicle!")
@@ -321,13 +324,15 @@ class Camera(Sensor):
 
 
 class LineDetectorCamera(Camera):
+    left: np.ndarray
+    right: np.ndarray
+
     def __init__(self, manager, debug=False, show=True):
         super(LineDetectorCamera, self).__init__(manager, debug, show)
         self.name = 'LineDetection'
         self.create()
         self.at = np.linspace(0, 30, num=5)
-        self.left = []
-        self.right = []
+        self.resetLines()
 
     def predict(self):
         '''
@@ -345,6 +350,10 @@ class LineDetectorCamera(Camera):
         ll, rl = self.lineDetector().extractPolynomials()
         self.left = ll(self.at)
         self.right = rl(self.at)
+
+    def resetLines(self):
+        self.left = np.zeros([1, 5])
+        self.right = np.zeros([1, 5])
 
     def create(self):
         super(LineDetectorCamera, self).create()

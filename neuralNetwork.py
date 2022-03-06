@@ -86,13 +86,13 @@ class NeuralNetwork:
         BO = self.weights[0, idxBOstart:idxBOend]
         return W1, W2, W3, BI, BH1, BH2, BO
 
-    def run(self, inputs):
+    def run(self, inputs, limit):
         '''
         Run one step of NN
         :param inputs: array of inputs [-1;1]
+        :param limit: coef to outputs
         :return: outputs array
         '''
-        #there needs to be preprocessing inputs
         assert inputs.shape[0] == self.nInput
         W1, W2, W3, BI, BH1, BH2, BO = self.parse()
 
@@ -116,4 +116,12 @@ class NeuralNetwork:
         for i in range(0, self.nOutput):
             O[0, i] = math.tanh(tmp[0, i])
 
-        return O
+        return O * limit
+
+    @staticmethod
+    def normalizeLinesInputs(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+        leftNCoef = np.max(np.abs(left))
+        rightNCoef = np.max(np.abs(right))
+        leftNormalized = left / leftNCoef
+        rightNormalized = right / rightNCoef
+        return np.concatenate((leftNormalized, rightNormalized), axis=0)
