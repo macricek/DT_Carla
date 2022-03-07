@@ -296,7 +296,7 @@ class Camera(Sensor):
         :return: Nothing
         '''
         print(f"[{self.name}]Starting drawing process")
-        while not self.manager.isCollided():
+        while True:
             drawingImg = copy.copy(self.image)
             if self.stop:
                 print("STOP")

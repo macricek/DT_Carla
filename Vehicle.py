@@ -6,6 +6,7 @@ from PyQt5.QtCore import QObject, pyqtSignal
 import neuralNetwork
 from Sensors import *
 from queue import Queue
+from collections import deque
 import sys
 from agents.navigation.basic_agent import BasicAgent
 
@@ -37,6 +38,7 @@ class Vehicle(QObject):
     debug: bool
     goal: carla.Location
     path: queue.Queue
+    toGoal: deque
     done: bool
     nn: neuralNetwork.NeuralNetwork
 
@@ -44,6 +46,7 @@ class Vehicle(QObject):
     __crossings = 0
     __errDec = 0
     __collisions = 0
+    __penalty = 0
 
     def __init__(self, environment, spawnLocation, neuralNetwork, id):
         super(Vehicle, self).__init__()
@@ -67,19 +70,27 @@ class Vehicle(QObject):
         if self.debug:
             print("Vehicle {id} ready".format(id=self.vehicleID))
         self.startTime = time.time()
+        self.toGoal = deque(maxlen=10)
 
-    def run(self):
+    def run(self, tickNum):
         '''
         Do a tick response for vehicle object
         :return: True, if vehicle is alive; False, if ending conditions were MET
         '''
-        if not self.me or self.sensorManager.isCollided() or self.checkGoal() or self.standing() or self.inCycle():
-            print("bumbum")
+        if not self.me or self.sensorManager.isCollided() or self.checkGoal():
+            print("Collision or Goal")
+            return False
+        if self.standing() or self.inCycle():
+            print("Standing/In cycle, penalization!")
+            self.__penalty = 1500
             return False
         # there will NN decide
         self.sensorManager.processSensors()
         control = self.getControl()
         self.me.apply_control(control)
+        if tickNum % 10 == 0:
+            print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
+            self.toGoal.append(self.diffToLocation(self.goal))
         return True
 
     def agentAction(self):
@@ -91,6 +102,7 @@ class Vehicle(QObject):
             if self.debug:
                 print(f"New waypoint for agent: {self.goal}")
             self.agent.set_destination(self.goal)
+            self.toGoal.clear()
         control = self.agent.run_step()
         control.manual_gear_shift = False
         if self.debug:
@@ -116,13 +128,18 @@ class Vehicle(QObject):
         self.__crossings = self.sensorManager.laneInvasionDetector.crossings
         self.__collisions = 1 if self.sensorManager.isCollided() else 0
 
-        return self.__crossings, self.__errDec, self.__collisions
+        return self.__crossings, self.__errDec, self.__collisions, self.__penalty
 
     def recordEachStep(self, agentSteer):
         self.__errDec += abs(agentSteer - self.steer)
 
-    def getControl(self):
+    def getControl(self, useDirectlyAgent=False):
         control = self.agentAction()
+
+        if useDirectlyAgent:
+            self.steer = control.steer
+            return control
+
         agentSteer = control.steer
         left, right = self.sensorManager.lines()
         if np.sum(left) == 0 or np.sum(right) == 0:
@@ -177,7 +194,15 @@ class Vehicle(QObject):
 
     def inCycle(self):
         now = time.time()
-        if now > 150 + self.startTime:
+        timeBool = now > 180 + self.startTime # gives timeout 3 min
+        if len(self.toGoal) < self.toGoal.maxlen:
+            dequeBool = False
+        else:
+            left = self.toGoal.popleft()
+            right = self.toGoal.pop()
+            self.toGoal.append(right)
+            dequeBool = True if abs(left - right) < 5 else False
+        if timeBool or dequeBool:
             return True
         else:
             return False

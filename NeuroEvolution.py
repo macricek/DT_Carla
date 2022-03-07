@@ -55,8 +55,8 @@ class NeuroEvolution(QObject):
         :return: Nothing
         '''
         at = vehicle.vehicleID
-        crossings, errDec, collisions = vehicle.record()
-        self.fit[0, at] = crossings * 2 + errDec * 0.1 + collisions * 10000
+        crossings, errDec, collisions, penalty = vehicle.record()
+        self.fit[0, at] = crossings * 2 + errDec * 0.1 + collisions * 10000 + penalty
 
     def perform(self):
         self.minFit.append(min(self.fit))

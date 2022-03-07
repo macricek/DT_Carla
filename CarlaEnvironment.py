@@ -57,11 +57,11 @@ class CarlaEnvironment(QObject):
     def tick(self):
         '''
         TICKING the world
-        :return:
+        :return: num of tick
         '''
-        if self.debug:
-            print("TICK!")
-        self.world.tick()
+        self.clock.tick()
+        tickNum = self.world.tick()
+        return tickNum
 
     def testRide(self):
         self.spawnVehicleToStart(True)
@@ -72,9 +72,8 @@ class CarlaEnvironment(QObject):
         print("Starting test ride")
         while True:
             try:
-                self.clock.tick()
-                self.world.tick()
-                if len(self.runStep()) > 0:
+                tickNum = self.tick()
+                if len(self.runStep(tickNum)) > 0:
                     self.main.terminate()
                     break
             except:
@@ -90,9 +89,8 @@ class CarlaEnvironment(QObject):
             self.spawnVehicleToStart(False)
             while True:
                 try:
-                    self.clock.tick()
-                    self.world.tick()
-                    listV = self.runStep()
+                    tickNum = self.tick()
+                    listV = self.runStep(tickNum)
                     if len(listV) > 0:
                         for veh in listV:
                             self.NE.singleFit(veh)
@@ -123,14 +121,14 @@ class CarlaEnvironment(QObject):
         self.vehicles.append(vehicle)
         self.handleVehicleId()
 
-    def runStep(self):
+    def runStep(self, tickNum):
         '''
         Ask all available vehicles to do their job.
         :return:
         '''
         endedVehicles = []
         for vehicle in self.vehicles:
-            if not vehicle.run():
+            if not vehicle.run(tickNum):
                 endedVehicles.append(vehicle)
         return endedVehicles
 
