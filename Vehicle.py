@@ -1,18 +1,17 @@
-import queue
-import threading
 import carla
 import time
 import random
 from PyQt5.QtCore import QObject, pyqtSignal
+
+import neuralNetwork
 from Sensors import *
 from queue import Queue
+from collections import deque
 import sys
-from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 from agents.navigation.basic_agent import BasicAgent
 
-from fastAI.FALineDetector import FALineDetector
 
-## global constants
+# global constants
 MAX_TIME_CAR = 5
 CAM_HEIGHT = 512
 CAM_WIDTH = 1024
@@ -38,37 +37,59 @@ class Vehicle(QObject):
     # other
     debug: bool
     goal: carla.Location
-    fald: FALineDetector
     path: queue.Queue
+    toGoal: deque
     done: bool
+    nn: neuralNetwork.NeuralNetwork
 
-    def __init__(self, environment, spawnLocation, id):
+    # record quality of driving
+    __crossings = 0
+    __errDec = 0
+    __collisions = 0
+    __penalty = 0
+
+    def __init__(self, environment, spawnLocation, neuralNetwork, id):
         super(Vehicle, self).__init__()
-        self.threadID = id  # threadOBJ
+        self.vehicleID = id
         self.environment = environment
         self.path = environment.config.loadPath()
         self.debug = self.environment.debug
-        self.fald = FALineDetector()
+        self.fald = self.environment.faLineDetector
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
+        self.nn = neuralNetwork
+
         self.speed = 0
+        self.vehicleStopped = 0
+        self.steer = 0
         self.done = False
         self.getLocation()
 
         self.initAgent(spawnLocation.location)
         self.sensorManager = SensorManager(self, self.environment)
 
-        if self.debug:
-            print("Vehicle {id} ready".format(id=self.threadID))
+        self.print("Vehicle {id} ready".format(id=self.vehicleID))
+        self.startTime = time.time()
+        self.toGoal = deque(maxlen=10)
 
-    def run(self):
+    def run(self, tickNum):
+        '''
+        Do a tick response for vehicle object
+        :return: True, if vehicle is alive; False, if ending conditions were MET
+        '''
         if not self.me or self.sensorManager.isCollided() or self.checkGoal():
-            self.terminate()
+            print("Collision or Goal")
+            return False
+        if self.standing() or self.inCycle():
+            print("Standing/In cycle, penalization!")
+            self.__penalty = 1500
             return False
         # there will NN decide
-        control = self.agentAction()
         self.sensorManager.processSensors()
-
+        control = self.getControl()
         self.me.apply_control(control)
+        if tickNum % 10 == 0:
+            self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
+            self.toGoal.append(self.diffToLocation(self.goal))
         return True
 
     def agentAction(self):
@@ -77,13 +98,12 @@ class Vehicle(QObject):
         :return: carla.Control
         '''
         if self.agent.done():
-            if self.debug:
-                print(f"New waypoint for agent: {self.goal}")
+            self.print(f"New waypoint for agent: {self.goal}")
             self.agent.set_destination(self.goal)
+            self.toGoal.clear()
         control = self.agent.run_step()
         control.manual_gear_shift = False
-        if self.debug:
-            print(f"Control: {control}")
+        self.print(f"Control: {control}")
         return control
 
     def initAgent(self, spawnLoc):
@@ -101,19 +121,88 @@ class Vehicle(QObject):
         self.goal = self.path.get()
         self.agent.set_destination(self.goal)
 
-    def terminate(self):
-        print("TERMINATE")
-        self.sensorManager.destroy()
-        self.destroy()
+    def record(self):
+        self.__crossings = self.sensorManager.laneInvasionDetector.crossings
+        self.__collisions = 1 if self.sensorManager.isCollided() else 0
+
+        return self.__crossings, self.__errDec, self.__collisions, self.__penalty
+
+    def recordEachStep(self, agentSteer):
+        self.__errDec += abs(agentSteer - self.steer)
+
+    def getControl(self, useDirectlyAgent=False):
+        control = self.agentAction()
+
+        if useDirectlyAgent:
+            self.steer = control.steer
+            return control
+
+        agentSteer = control.steer
+        left, right = self.sensorManager.lines()
+        if np.sum(left) == 0 or np.sum(right) == 0:
+            self.print("Lines wasn't detected correctly")
+            neuralSteer = agentSteer
+        else:
+            inputs = self.nn.normalizeLinesInputs(left, right)
+            neuralSteer = self.steer + self.nn.run(inputs, 0.1)[0][0]
+
+        if neuralSteer > 1:
+            self.steer = 1
+        elif neuralSteer < -1:
+            self.steer = -1
+        else:
+            self.steer = neuralSteer
+
+        self.recordEachStep(agentSteer)
+        control.steer = self.steer
+
+        return control
 
     def checkGoal(self):
+        '''
+        Checks, how far is vehicle from current goal. If goal is reached, new waypoint is loaded. When no more waypoints
+        it will return True as signing that current task is done.
+        :return: bool
+        '''
         dist = self.diffToLocation(self.goal)
-        print(f"Distance to goal is: {dist}")
+        self.print(f"Distance to goal is: {dist}")
         if dist < 0.2 or self.agent.done():
             if not self.path.empty():
                 self.goal = self.path.get()
             else:
                 return True
+
+    def standing(self):
+        '''
+        check, if vehicle is moving or standing. If standing for longer period (100+ticks) returns True
+        :return: bool
+        '''
+        speed = self.getSpeed()
+        if speed < 5:
+            self.vehicleStopped += 1
+        else:
+            self.vehicleStopped = 0
+
+        if self.vehicleStopped >= 100:
+            print("VEHICLE IS STOPPED!")
+            return True
+        else:
+            return False
+
+    def inCycle(self):
+        now = time.time()
+        timeBool = now > 300 + self.startTime # gives timeout 5 min
+        if len(self.toGoal) < self.toGoal.maxlen:
+            dequeBool = False
+        else:
+            left = self.toGoal.popleft()
+            right = self.toGoal.pop()
+            self.toGoal.append(right)
+            dequeBool = True if abs(left - right) < 5 else False
+        if timeBool or dequeBool:
+            return True
+        else:
+            return False
 
     def getLocation(self):
         '''
@@ -152,6 +241,10 @@ class Vehicle(QObject):
         '''
         return self.me
 
+    def print(self, message: str):
+        if self.debug:
+            print(message)
+
     def print3Dvector(self, vector, type):
         '''
         Method for debug write of carla.3Dvector
@@ -162,17 +255,17 @@ class Vehicle(QObject):
         x = vector.x
         y = vector.y
         z = vector.z
-        print("{id}:[{t}] X: {x}, Y: {y}, Z: {z}".format(id=self.threadID, t=type, x=x, y=y, z=z))
+        print("{id}:[{t}] X: {x}, Y: {y}, Z: {z}".format(id=self.vehicleID, t=type, x=x, y=y, z=z))
 
     def destroy(self):
         '''
         Destroy all sensors attached to vehicle and then vehicle on it's own
         :return: none
         '''
-        if self.debug:
-            print("Destroying Vehicle {id}".format(id=self.threadID))
+        self.print("Destroying Vehicle {id}".format(id=self.vehicleID))
         try:
             self.sensorManager.destroy()
             self.me.destroy()
-        finally:
-            self.environment.deleteVehicle(self)
+            self.environment.tick()
+        except:
+            print(f"Error in destroying of {self.vehicleID}")

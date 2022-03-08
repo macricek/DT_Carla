@@ -3,6 +3,11 @@ import numpy as np
 
 
 class NeuralNetwork:
+    '''
+    Basic MLP neural network implementation
+    @author: Marko Chylik
+    @2022
+    '''
     nInput = 0
     nHiddenLayers = 0
     nHidden = None
@@ -12,6 +17,13 @@ class NeuralNetwork:
     weights = None
 
     def __init__(self, nInput, nHiddenInL, nOutput, weights=None):
+        '''
+        Constructor of NN.
+        :param nInput: number of inputs [INT]
+        :param nHiddenInL: number of hidden neurons [np.array]
+        :param nOutput: number of outputs [INT]
+        :param weights: array of weights -> using method setWeights to update weights.
+        '''
         self.nInput = nInput
         self.nHiddenLayers = nHiddenInL.shape[0]
         self.nHidden = nHiddenInL
@@ -20,10 +32,20 @@ class NeuralNetwork:
         self.weights = weights
 
     def setWeights(self, weights):
+        '''
+        Update weights to new value
+        :param weights: np.array of correct size
+        :return: Nothing
+        '''
+        assert weights.shape[0] == self.szWeights + self.szBiases
         self.weights = weights
 
     def getNumOfNeededElements(self):
-        szW = self.nInput * self.nHidden[0] + self.nOutput * self.nHidden[-1]
+        '''
+        Calculate number of needed weights and biases to fill in NN.
+        :return: size of weights, biases [INT, INT]
+        '''
+        szW = self.nInput * self.nHidden[0] + self.nOutput * self.nHidden[1]
         szB = self.nInput + self.nOutput + self.nHidden[-1]
         for i in range(0, self.nHiddenLayers - 1):
             szW += self.nHidden[i] * self.nHidden[i + 1]
@@ -31,7 +53,11 @@ class NeuralNetwork:
         return szW, szB
 
     def parse(self):
-        assert self.weights.shape[1] == self.szWeights + self.szBiases
+        '''
+        Parse self.weights array to more arrays that'll be used in NN calculations
+        :return: Weights, Biases
+        '''
+        assert self.weights.shape[0] == self.szWeights + self.szBiases
         # weights index
         idxW1end = self.nInput * self.nHidden[0]
         idxW2start = idxW1end
@@ -47,21 +73,26 @@ class NeuralNetwork:
         idxBH2end = idxBH2start + self.nHidden[1]
         idxBOstart = idxBH2end
         idxBOend = idxBOstart + self.nOutput
-        v = self.weights.shape[1]
-        assert idxBOend == self.weights.shape[1]
+        v = self.weights.shape[0]
+        assert idxBOend == self.weights.shape[0]
         # weights parsing
-        W1 = np.reshape(self.weights[0, 0:idxW1end], (self.nInput, self.nHidden[0]))
-        W2 = np.reshape(self.weights[0, idxW2start:idxW2end], (self.nHidden[0], self.nHidden[1]))
-        W3 = np.reshape(self.weights[0, idxW3start:idxW3end], (self.nHidden[1], self.nOutput))
+        W1 = np.reshape(self.weights[0:idxW1end], (self.nInput, self.nHidden[0]))
+        W2 = np.reshape(self.weights[idxW2start:idxW2end], (self.nHidden[0], self.nHidden[1]))
+        W3 = np.reshape(self.weights[idxW3start:idxW3end], (self.nHidden[1], self.nOutput))
         # biases parsing
-        BI = self.weights[0, idxBIstart:idxBIend]
-        BH1 = self.weights[0, idxBH1start:idxBH1end]
-        BH2 = self.weights[0, idxBH2start:idxBH2end]
-        BO = self.weights[0, idxBOstart:idxBOend]
+        BI = self.weights[idxBIstart:idxBIend]
+        BH1 = self.weights[idxBH1start:idxBH1end]
+        BH2 = self.weights[idxBH2start:idxBH2end]
+        BO = self.weights[idxBOstart:idxBOend]
         return W1, W2, W3, BI, BH1, BH2, BO
 
-    def run(self, inputs):
-        #there needs to be preprocessing inputs
+    def run(self, inputs, limit):
+        '''
+        Run one step of NN
+        :param inputs: array of inputs [-1;1]
+        :param limit: coef to outputs
+        :return: outputs array
+        '''
         assert inputs.shape[0] == self.nInput
         W1, W2, W3, BI, BH1, BH2, BO = self.parse()
 
@@ -85,4 +116,12 @@ class NeuralNetwork:
         for i in range(0, self.nOutput):
             O[0, i] = math.tanh(tmp[0, i])
 
-        return O
+        return O * limit
+
+    @staticmethod
+    def normalizeLinesInputs(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+        leftNCoef = np.max(np.abs(left))
+        rightNCoef = np.max(np.abs(right))
+        leftNormalized = left / leftNCoef
+        rightNormalized = right / rightNCoef
+        return np.concatenate((leftNormalized, rightNormalized), axis=0)

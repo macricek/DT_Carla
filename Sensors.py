@@ -19,7 +19,6 @@ class SensorManager(QtCore.QObject):
     In case of Sync, we need to manage sensors when server ticks.
     If mode is async, we could simply rely on callbacks.
     """
-    readySignal = QtCore.pyqtSignal()
 
     def __init__(self, vehicle, environment):
         super().__init__()
@@ -32,13 +31,14 @@ class SensorManager(QtCore.QObject):
         self.config = environment.config
 
         self.ldCam = LineDetectorCamera(self, False, False)
-        self.rgbCam = Camera(self, False, True)
+        self.rgbCam = Camera(self, False, False)
         self.segCam = SegmentationCamera(self, False, False)
 
         self.collision = CollisionSensor(self, False)
         self.radar = RadarSensor(self, False)
         self.lidar = LidarSensor(self, False)
         self.obstacleDetector = ObstacleDetector(self, False)
+        self.laneInvasionDetector = LaneInvasionDetector(self, False)
 
         self.addToSensorsList()
         self.activate()
@@ -55,6 +55,8 @@ class SensorManager(QtCore.QObject):
             self.sensors.append(self.obstacleDetector)
         if convertStringToBool(settings.get("lidarsensor")):
             self.sensors.append(self.lidar)
+        if convertStringToBool(settings.get("laneinvasiondetector")):
+            self.sensors.append(self.laneInvasionDetector)
         # CAMERAS
         if convertStringToBool(settings.get("linedetectorcamera")):
             self.sensors.append(self.ldCam)
@@ -72,24 +74,18 @@ class SensorManager(QtCore.QObject):
     def processSensors(self):
         for sensor in self.sensors:
             sensor.on_world_tick()
-        print("on_world_tick done!")
-
-    def readySensor(self):
-        self.readySensors += 1
-        print(f"Got signal ready from {self.readySensors}/{self.count}")
-        self.checkForPossibleInvoke()
-
-    def checkForPossibleInvoke(self):
-        if self.readySensors == self.count:
-            print("All sensors ready")
-            self.readySensors = 0
-            self.readySignal.emit()
 
     def isCollided(self):
         return self.collision.isCollided()
 
+    def lines(self):
+        retLeft = copy.deepcopy(self.ldCam.left)
+        retRight = copy.deepcopy(self.ldCam.right)
+        self.ldCam.resetLines()
+        return retLeft, retRight
+
     def destroy(self):
-        print(f"Invoking deletion of sensors of {self.vehicle.threadID} vehicle!")
+        print(f"Invoking deletion of sensors of {self.vehicle.vehicleID} vehicle!")
         for sensor in self.sensors:
             print(f"Deleting sensor {sensor.name}")
             sensor.destroy()
@@ -181,12 +177,12 @@ class CollisionSensor(Sensor):
         super().__init__(manager, debug)
         self.name = "Collision"
         self.collided = False
-        self.bp = super().blueprints().find('sensor.other.collision')
+        self.bp = self.blueprints().find('sensor.other.collision')
         self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
     def callBack(self, data):
         self.collided = True
-        print("Vehicle {id} collided!".format(id=self.vehicle.threadID))
+        print("Vehicle {id} collided!".format(id=self.vehicle.vehicleID))
 
     def isCollided(self):
         return self.collided
@@ -196,7 +192,7 @@ class ObstacleDetector(Sensor):
     def __init__(self, vehicle, debug=False):
         super().__init__(vehicle, debug)
         self.name = "Obstacle"
-        self.bp = super().blueprints().find('sensor.other.obstacle')
+        self.bp = self.blueprints().find('sensor.other.obstacle')
         self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
     def callBack(self, data):
@@ -208,9 +204,9 @@ class LidarSensor(Sensor):
     def __init__(self, manager, debug=False):
         super().__init__(manager, debug)
         self.name = "Lidar"
-        self.bp = super().blueprints().find('sensor.lidar.ray_cast')
+        self.bp = self.blueprints().find('sensor.lidar.ray_cast')
         self.bp.channels = 1
-        self.where = carla.Transform(carla.Location(x=0, z=0))
+        self.where = carla.Transform(carla.Location(x=0, y=0, z=0))
 
     def callBack(self, data):
         if self.debug:
@@ -218,6 +214,36 @@ class LidarSensor(Sensor):
             for location in data:
                 print("{num}: {location}".format(num=number, location=location))
                 number += 1
+
+
+class LaneInvasionDetector(Sensor):
+    def __init__(self, manager, debug=False):
+        super().__init__(manager, debug)
+        self.name = "LaneInvasion"
+        self.bp = self.blueprints().find('sensor.other.lane_invasion')
+        self.where = carla.Transform(carla.Location(x=0, y=0, z=0))
+
+        self.crossings = 0
+        self.lastCross = -5
+
+    def callBack(self, data):
+        frameCrossed = data.frame
+        if self.debug:
+            print(f"Vehicle {self.vehicle.vehicleID} crossed line!")
+            print(f"Crossed at frame {frameCrossed}, last cross was at {self.lastCross}")
+
+        if self.lastCross + 5 < frameCrossed:
+            self.crossings -= 1
+        else:
+            self.crossings += 1
+        self.lastCross = frameCrossed
+
+    def status(self):
+        print(f"Crossings: {self.crossings}, last at: {self.lastCross}")
+
+    def destroy(self):
+        self.status()
+        super(LaneInvasionDetector, self).destroy()
 
 
 class Camera(Sensor):
@@ -247,7 +273,7 @@ class Camera(Sensor):
 
     def create(self):
         typeOfCamera = self.options.get(self.name)[0]
-        self.bp = super().blueprints().find(typeOfCamera)
+        self.bp = self.blueprints().find(typeOfCamera)
         self.bp.set_attribute('image_size_x', f'{self.camWidth}')
         self.bp.set_attribute('image_size_y', f'{self.camHeight}')
         self.bp.set_attribute('fov', '110')
@@ -270,17 +296,17 @@ class Camera(Sensor):
         :return: Nothing
         '''
         print(f"[{self.name}]Starting drawing process")
-        while not self.manager.isCollided():
+        while True:
             drawingImg = copy.copy(self.image)
             if self.stop:
                 print("STOP")
                 self.stop = False
                 break
-            cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.threadID, n=self.name), drawingImg)
+            cv2.imshow("Vehicle {id}, Camera {n}".format(id=self.vehicle.vehicleID, n=self.name), drawingImg)
             cv2.waitKey(1)
 
     def invokeDraw(self):
-        if self.drawingThread is None and self.show:
+        if self.show and self.drawingThread is None:
             self.drawingThread = threading.Thread(target=self.draw)
             self.drawingThread.start()
 
@@ -298,23 +324,49 @@ class Camera(Sensor):
 
 
 class LineDetectorCamera(Camera):
+    left: np.ndarray
+    right: np.ndarray
+
     def __init__(self, manager, debug=False, show=True):
         super(LineDetectorCamera, self).__init__(manager, debug, show)
         self.name = 'LineDetection'
         self.create()
+        self.at = np.linspace(0, 30, num=5)
+        self.resetLines()
 
     def predict(self):
+        '''
+        loads image to LineDetector and predicts where are lines
+        :return: Nothing
+        '''
         self.lineDetector().loadImage(numpyArr=self.image)
         self.lineDetector().predict()
-        self.lineDetector().integrateLines()
+
+    def lines(self):
+        '''
+        Left and right points in range 0,30m (5 points->numPoints)
+        :return:
+        '''
+        ll, rl = self.lineDetector().extractPolynomials()
+        self.left = ll(self.at)
+        self.right = rl(self.at)
+
+    def resetLines(self):
+        self.left = np.zeros([1, 5])
+        self.right = np.zeros([1, 5])
 
     def create(self):
         super(LineDetectorCamera, self).create()
-        self.where = carla.Transform(carla.Location(x=2.5, z=0.7))
+        self.where = carla.Transform(carla.Location(x=2.5, z=1.3), carla.Rotation(pitch=-5.0))
+
+    def invokeDraw(self):
+        self.lineDetector().integrateLines()
+        super(LineDetectorCamera, self).invokeDraw()
 
     def callBack(self, data):
         super().callBack(data)
         self.predict()
+        self.lines()
         self.invokeDraw()
 
 

@@ -1,12 +1,12 @@
 import glob
 import os
-import random
 import sys
 import pygame
-import time
 from Vehicle import Vehicle
 from CarlaConfig import CarlaConfig
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
+from NeuroEvolution import NeuroEvolution
+from fastAI.FALineDetector import FALineDetector
 
 # from Carla doc
 try:
@@ -22,73 +22,129 @@ import carla
 class CarlaEnvironment(QObject):
     debug: bool
     config: CarlaConfig
+    NE: NeuroEvolution
     # lists
     vehicles = []
-    threads = []
-    maxId = 5
     # members
-    client = carla.Client
-    world = carla.World
-    blueprints = carla.BlueprintLibrary
+    client: carla.Client
+    world: carla.World
+    blueprints: carla.BlueprintLibrary
+    trafficManager: carla.TrafficManager
     # PyQt signals
     done = pyqtSignal()
 
-    def __init__(self, numVehicles, main, debug=False):
+    def __init__(self, main, debug=False):
         super(CarlaEnvironment, self).__init__()
         self.id = 0
         self.debug = debug
-        self.numVehicles = numVehicles
+        self.main = main
+        self.clock = pygame.time.Clock()
+
         self.client = carla.Client('localhost', 2000)
         self.config = CarlaConfig(self.client)
+        self.NE = NeuroEvolution(self.config.loadAndIncrementNE())
+        self.faLineDetector = FALineDetector()
+        self.MAX_ID = self.NE.popSize
+
         self.trafficManager = self.client.get_trafficmanager()
         self.trafficManager.set_synchronous_mode(self.config.sync)
-        self.main = main
         self.world = self.client.get_world()
-        self.clock = pygame.time.Clock()
         self.blueprints = self.world.get_blueprint_library()
         self.map = self.world.get_map()
-        self.spawnVehicles(numVehicles)
+
         print("INIT DONE")
-        time.sleep(1)
-        self.run()
 
     def tick(self):
-        print("TICK!")
-        self.world.tick()
+        '''
+        TICKING the world
+        :return: num of tick
+        '''
+        self.clock.tick()
+        tickNum = self.world.tick()
+        return tickNum
 
-    def run(self):
-        print("Starting RUN")
+    def testRide(self):
+        self.spawnVehicleToStart(True)
+        '''
+        Spawn one car and "simulate" ride through waypoints
+        :return: Nothing
+        '''
+        print("Starting test ride")
         while True:
             try:
-                self.clock.tick()
-                self.world.tick()
-                if self.runStep():
+                tickNum = self.tick()
+                if len(self.runStep(tickNum)) > 0:
                     self.main.terminate()
+                    break
             except:
                 self.main.terminate()
 
-    def spawnVehicles(self, numVehicles):
-        for i in range(0, numVehicles):
-            spawnPoints = self.map.get_spawn_points()
-            start = spawnPoints[i+99] #spawnPoints[int(random.random()*len(spawnPoints))]
-            vehicle = Vehicle(self, start, id=self.id)
-            self.vehicles.append(vehicle)
-            self.id += 1
+    def trainingRide(self):
+        '''
+        Handles one epoch of training!
+        :return: Nothing
+        '''
+        print("Starting training")
+        for _ in range(self.MAX_ID):
+            self.spawnVehicleToStart(False)
+            while True:
+                try:
+                    tickNum = self.tick()
+                    listV = self.runStep(tickNum)
+                    if len(listV) > 0:
+                        for veh in listV:
+                            self.NE.singleFit(veh)
+                            print(f"Vehicle {veh.vehicleID} done!")
+                            self.deleteVehicle(veh)
+                        break
+                except:
+                    self.NE.finishNeuroEvolutionProcess()
+                    self.main.terminate()
 
-    def runStep(self):
-        end = False
+    def train(self):
+        for i in range(self.NE.numCycle):
+            print(f"Starting EPOCH {i}/{self.NE.numCycle-1}")
+            # run one training epoch
+            self.trainingRide()
+            self.NE.perform()
+        self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
+
+    def spawnVehicleToStart(self, vehDebug):
+        '''
+        Spawn vehicle to starting spot (spawnPoint[99]) and create it.
+        :return: Nothing
+        '''
+        spawnPoints = self.map.get_spawn_points()
+        start = spawnPoints[99]
+        vehicle = Vehicle(self, start, id=self.id, neuralNetwork=self.NE.getNeuralNetwork(self.id))
+        vehicle.debug = vehDebug
+        self.vehicles.append(vehicle)
+        self.handleVehicleId()
+
+    def runStep(self, tickNum):
+        '''
+        Ask all available vehicles to do their job.
+        :return:
+        '''
+        endedVehicles = []
         for vehicle in self.vehicles:
-            if not vehicle.run():
-                self.deleteVehicle(vehicle)
-                end = True
-        return end
+            if not vehicle.run(tickNum):
+                endedVehicles.append(vehicle)
+        return endedVehicles
+
+    def handleVehicleId(self):
+        if self.id < self.MAX_ID - 1:
+            self.id += 1
+        else:
+            self.id = 0
 
     def deleteVehicle(self, vehicle):
         for v in self.vehicles:
             if v == vehicle:
                 try:
+                    print(f"Deleting vehicle {vehicle.vehicleID}")
+                    v.destroy()
                     self.vehicles.remove(vehicle)
-                    del vehicle
                 except:
                     print("Vehicle already out")
 
@@ -96,17 +152,20 @@ class CarlaEnvironment(QObject):
         for vehicle in self.vehicles:
             try:
                 vehicle.destroy()
+                self.vehicles.remove(vehicle)
+                del vehicle
                 print("Removing vehicle!")
             except:
                 print("Already deleted!")
-        try:
-            del self.threads
-        except:
-            print("No threads")
 
-    def __del__(self):
+    def terminate(self):
         self.deleteAll()
         print("Turning off sync mode")
         self.trafficManager.set_synchronous_mode(False)
         self.config.turnOffSync()
 
+    def __del__(self):
+        try:
+            self.terminate()
+        except:
+            print("Error in deleting CarlaEnv")

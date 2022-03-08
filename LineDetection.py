@@ -134,8 +134,8 @@ class CNNLineDetector:
     def train(self, num_epochs, save=True):
         for i in range(1, num_epochs+1):
             print("Running epoch {now}/{max}".format(now=i, max=num_epochs))
-            logTraining = self.train_epoch.run(self.trainloader)
-            logValidation = self.val_epoch.run(self.valloader)
+            logTraining = self.train_epoch.testRide()
+            logValidation = self.val_epoch.testRide()
             print("TRAINING STATUS")
             print(logTraining, logValidation)
         if save:
