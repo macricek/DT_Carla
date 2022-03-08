@@ -31,7 +31,7 @@ class SensorManager(QtCore.QObject):
         self.config = environment.config
 
         self.ldCam = LineDetectorCamera(self, False, False)
-        self.rgbCam = Camera(self, False, True)
+        self.rgbCam = Camera(self, False, False)
         self.segCam = SegmentationCamera(self, False, False)
 
         self.collision = CollisionSensor(self, False)

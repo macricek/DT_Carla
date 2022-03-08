@@ -42,7 +42,7 @@ class CarlaEnvironment(QObject):
 
         self.client = carla.Client('localhost', 2000)
         self.config = CarlaConfig(self.client)
-        self.NE = NeuroEvolution(self.config.readSection("NE"))
+        self.NE = NeuroEvolution(self.config.loadAndIncrementNE())
         self.faLineDetector = FALineDetector()
         self.MAX_ID = self.NE.popSize
 

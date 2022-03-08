@@ -41,6 +41,17 @@ class CarlaConfig:
     def readSection(self, section):
         return dict(self.parser.items(section))
 
+    def loadAndIncrementNE(self) -> dict:
+        expDict = self.readSection("NE")
+        old = int(self.parser.get("NE", "rev"))
+        self.parser.set("NE", "rev", str(old + 1))
+        self.rewrite()
+        return expDict
+
+    def rewrite(self):
+        with open(self.path, 'w') as configfile:
+            self.parser.write(configfile)
+
     def turnOffSync(self):
         world = self.client.get_world()
         if self.sync:

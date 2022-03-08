@@ -67,8 +67,7 @@ class Vehicle(QObject):
         self.initAgent(spawnLocation.location)
         self.sensorManager = SensorManager(self, self.environment)
 
-        if self.debug:
-            print("Vehicle {id} ready".format(id=self.vehicleID))
+        self.print("Vehicle {id} ready".format(id=self.vehicleID))
         self.startTime = time.time()
         self.toGoal = deque(maxlen=10)
 
@@ -89,7 +88,7 @@ class Vehicle(QObject):
         control = self.getControl()
         self.me.apply_control(control)
         if tickNum % 10 == 0:
-            print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
+            self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
             self.toGoal.append(self.diffToLocation(self.goal))
         return True
 
@@ -99,14 +98,12 @@ class Vehicle(QObject):
         :return: carla.Control
         '''
         if self.agent.done():
-            if self.debug:
-                print(f"New waypoint for agent: {self.goal}")
+            self.print(f"New waypoint for agent: {self.goal}")
             self.agent.set_destination(self.goal)
             self.toGoal.clear()
         control = self.agent.run_step()
         control.manual_gear_shift = False
-        if self.debug:
-            print(f"Control: {control}")
+        self.print(f"Control: {control}")
         return control
 
     def initAgent(self, spawnLoc):
@@ -143,7 +140,7 @@ class Vehicle(QObject):
         agentSteer = control.steer
         left, right = self.sensorManager.lines()
         if np.sum(left) == 0 or np.sum(right) == 0:
-            print("Lines wasn't detected correctly")
+            self.print("Lines wasn't detected correctly")
             neuralSteer = agentSteer
         else:
             inputs = self.nn.normalizeLinesInputs(left, right)
@@ -168,7 +165,7 @@ class Vehicle(QObject):
         :return: bool
         '''
         dist = self.diffToLocation(self.goal)
-        print(f"Distance to goal is: {dist}")
+        self.print(f"Distance to goal is: {dist}")
         if dist < 0.2 or self.agent.done():
             if not self.path.empty():
                 self.goal = self.path.get()
@@ -194,7 +191,7 @@ class Vehicle(QObject):
 
     def inCycle(self):
         now = time.time()
-        timeBool = now > 180 + self.startTime # gives timeout 3 min
+        timeBool = now > 300 + self.startTime # gives timeout 5 min
         if len(self.toGoal) < self.toGoal.maxlen:
             dequeBool = False
         else:
@@ -244,6 +241,10 @@ class Vehicle(QObject):
         '''
         return self.me
 
+    def print(self, message: str):
+        if self.debug:
+            print(message)
+
     def print3Dvector(self, vector, type):
         '''
         Method for debug write of carla.3Dvector
@@ -261,8 +262,7 @@ class Vehicle(QObject):
         Destroy all sensors attached to vehicle and then vehicle on it's own
         :return: none
         '''
-        if self.debug:
-            print("Destroying Vehicle {id}".format(id=self.vehicleID))
+        self.print("Destroying Vehicle {id}".format(id=self.vehicleID))
         try:
             self.sensorManager.destroy()
             self.me.destroy()

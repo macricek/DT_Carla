@@ -43,10 +43,16 @@ class NeuroEvolution(QObject):
         self.amp = upper * 0.1
         initSpace = self.space * 0.1
 
+        # for saving
+        self.base = str(nnConfig.get("base"))
+        self.rev = str(nnConfig.get("rev"))
+        self.fileBest = self.base + f'best{self.rev}.csv'
+        self.fileGraph = self.base + f"GA{self.rev}.png"
+
         # initial params
         self.pop = genetic.genrpop(self.popSize, initSpace)
         self.minFit = []
-        self.fit = np.ones((1, 50)) * np.inf
+        self.fit = np.ones((1, self.popSize)) * np.inf
 
     def singleFit(self, vehicle: Vehicle.Vehicle):
         '''
@@ -59,7 +65,7 @@ class NeuroEvolution(QObject):
         self.fit[0, at] = crossings * 2 + errDec * 0.1 + collisions * 10000 + penalty
 
     def perform(self):
-        self.minFit.append(min(self.fit))
+        self.minFit.append(np.min(self.fit))
 
         Best = genetic.selsort(self.pop, self.fit, 1)
         BestPop = genetic.selsort(self.pop, self.fit, self.nBest)
@@ -103,11 +109,11 @@ class NeuroEvolution(QObject):
         plt.title("Priebeh evolúcie fitness funkcie")
         plt.xlabel("Cykly")
         plt.ylabel("Hodnota fitness funkcie")
-        plt.savefig("figs/GA.png")
+        plt.savefig(self.fileGraph)
         plt.show()
 
     def finishNeuroEvolutionProcess(self):
         Best = genetic.selsort(self.pop, self.fit, 1)
-        np.savetxt('best.csv', Best, delimiter=',')
+        np.savetxt(self.fileBest, Best, delimiter=',')
         #data = np.loadtxt('data.csv', delimiter=',') // LOADING afterwards
         self.plotEvolution()
