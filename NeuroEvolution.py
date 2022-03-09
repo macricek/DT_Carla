@@ -58,9 +58,6 @@ class NeuroEvolution(QObject):
         self.pop = genetic.genrpop(self.popSize, initSpace)
         self.minFit = []
         self.fit = np.ones((1, self.popSize)) * 100000
-        for k in range(10):
-            self.minFit.append(np.min(self.fit))
-        self.plotEvolution()
 
     def singleFit(self, vehicle: Vehicle.Vehicle):
         '''
@@ -69,12 +66,12 @@ class NeuroEvolution(QObject):
         :return: Nothing
         '''
         at = vehicle.vehicleID
-        crossings, errDec, collisions, penalty = vehicle.record()
-        self.fit[0, at] = crossings * 2 + errDec * 0.1 + collisions * 10000 + penalty
+        crossings, errDec, collisions, penaltyAndRewards = vehicle.record()
+        self.fit[0, at] = abs(crossings) * 2 + errDec * 0.1 + collisions * 10000 + penaltyAndRewards
 
     def perform(self):
         self.minFit.append(np.min(self.fit))
-
+        print(f"Done epochs: {len(self.minFit)}/{self.numCycle}, BestFit: {np.min(self.fit)}")
         Best = genetic.selsort(self.pop, self.fit, 1)
         BestPop = genetic.selsort(self.pop, self.fit, self.nBest)
         WorkPop1 = genetic.selrand(self.pop, self.fit, self.nWork1)
