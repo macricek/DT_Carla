@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import time
 
@@ -45,14 +47,20 @@ class NeuroEvolution(QObject):
 
         # for saving
         self.base = str(nnConfig.get("base"))
+        if not os.path.exists(self.base):
+            os.mkdir(self.base)
         self.rev = str(nnConfig.get("rev"))
         self.fileBest = self.base + f'best{self.rev}.csv'
         self.fileGraph = self.base + f"GA{self.rev}.png"
+        self.fileEvol = self.base + f"Evol{self.rev}.csv"
 
         # initial params
         self.pop = genetic.genrpop(self.popSize, initSpace)
         self.minFit = []
-        self.fit = np.ones((1, self.popSize)) * np.inf
+        self.fit = np.ones((1, self.popSize)) * 100000
+        for k in range(10):
+            self.minFit.append(np.min(self.fit))
+        self.plotEvolution()
 
     def singleFit(self, vehicle: Vehicle.Vehicle):
         '''
@@ -104,8 +112,9 @@ class NeuroEvolution(QObject):
         self.nGenerate = popSizeWithoutBest - self.nBest - self.nWork1 - self.nWork2
 
     def plotEvolution(self):
-        plot = plt.figure(1)
-        plt.plot(np.asarray(self.minFit))
+        evol = np.asarray(self.minFit)
+        np.savetxt(self.fileEvol, evol, delimiter=',')
+        plt.plot(evol)
         plt.title("Priebeh evolúcie fitness funkcie")
         plt.xlabel("Cykly")
         plt.ylabel("Hodnota fitness funkcie")
@@ -115,5 +124,7 @@ class NeuroEvolution(QObject):
     def finishNeuroEvolutionProcess(self):
         Best = genetic.selsort(self.pop, self.fit, 1)
         np.savetxt(self.fileBest, Best, delimiter=',')
+        evol = np.asarray(self.minFit)
+        np.savetxt(self.fileEvol, evol, delimiter=',')
         #data = np.loadtxt('data.csv', delimiter=',') // LOADING afterwards
-        self.plotEvolution()
+        #self.plotEvolution()
