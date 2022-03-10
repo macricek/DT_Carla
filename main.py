@@ -13,6 +13,7 @@ class Main(QCoreApplication):
         self.time = time.time()
         self.carlaEnvironment = CarlaEnvironment(self,  True)
         self.carlaEnvironment.train()
+        self.carlaEnvironment.terminate()
         #self.carlaEnvironment.testRide()
 
     def terminate(self):
