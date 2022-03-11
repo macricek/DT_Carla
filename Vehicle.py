@@ -1,3 +1,5 @@
+import datetime
+
 import carla
 import time
 import random
@@ -66,8 +68,8 @@ class Vehicle(QObject):
 
         self.initAgent(spawnLocation.location)
         self.sensorManager = SensorManager(self, self.environment)
-
-        self.print("Vehicle {id} ready".format(id=self.vehicleID))
+        currentDt = str(datetime.datetime.now())
+        print("Vehicle {id} ready at {dt}".format(id=self.vehicleID, dt=currentDt))
         self.startTime = time.time()
         self.toGoal = deque(maxlen=10)
 

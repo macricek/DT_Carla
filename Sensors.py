@@ -28,9 +28,10 @@ class SensorManager(QtCore.QObject):
         self.count = 0
         self.readySensors = 0
         self.vehicle = vehicle
-        self.debug = vehicle.debug
+
         self.environment = environment
         self.config = environment.config
+        self.debug = not environment.trainingMode
 
         self.ldCam = LineDetectorCamera(self, False, False)
         self.rgbCam = Camera(self, False, False)
@@ -331,8 +332,9 @@ class Camera(Sensor):
         if self.drawingThread is not None:
             self.show = False
             self.stop = True  # break showing threads
-            while self.stop:
-                self.manager.environment.tick()
+            for _ in range(10):
+                if self.stop:
+                    self.manager.environment.tick()
             self.drawingThread = None
         super(Camera, self).destroy()
 

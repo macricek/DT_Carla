@@ -22,6 +22,7 @@ import carla
 
 class CarlaEnvironment(QObject):
     debug: bool
+    trainingMode: bool
     config: CarlaConfig
     NE: NeuroEvolution
     # lists
@@ -46,7 +47,7 @@ class CarlaEnvironment(QObject):
         self.NE = NeuroEvolution(self.config.loadNEData())
         self.faLineDetector = FALineDetector()
         self.MAX_ID = self.NE.popSize
-
+        self.trainingMode = False
         self.trafficManager = self.client.get_trafficmanager()
         self.trafficManager.set_synchronous_mode(self.config.sync)
         self.world = self.client.get_world()
@@ -65,6 +66,7 @@ class CarlaEnvironment(QObject):
         return tickNum
 
     def testRide(self, numRevision):
+        self.trainingMode = False
         self.spawnVehicleToStart(True, numRevision)
         '''
         Spawn one car and "simulate" ride through waypoints
@@ -99,17 +101,17 @@ class CarlaEnvironment(QObject):
                             self.deleteVehicle(veh)
                         break
                 except:
-                    self.NE.finishNeuroEvolutionProcess()
                     self.main.terminate()
 
     def train(self):
+        self.trainingMode = True
         self.config.incrementNE()
         for i in range(self.NE.numCycle):
             print(f"Starting EPOCH {i}/{self.NE.numCycle-1}")
             # run one training epoch
             self.trainingRide()
             self.NE.perform()
-        self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
+            self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
         self.main.terminate()
 
     def spawnVehicleToStart(self, testRide, numRevision=0):

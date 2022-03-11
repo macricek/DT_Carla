@@ -48,8 +48,8 @@ class NeuroEvolution(QObject):
         # for saving
         self.base = str(nnConfig.get("base"))
         self.rev = str(nnConfig.get("rev"))
-        self.fileBest = self.base + f'best{self.rev}.csv'
-        self.fileEvol = self.base + f"evol{self.rev}.csv"
+        self.fileBest = self.base + f'{self.rev}/best.csv'
+        self.fileEvol = self.base + f"{self.rev}/evol.csv"
 
         # initial params
         self.pop = genetic.genrpop(self.popSize, initSpace)
