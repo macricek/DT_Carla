@@ -1,3 +1,5 @@
+import copy
+
 import carla
 import configparser
 import queue
@@ -42,24 +44,29 @@ class CarlaConfig:
     def readSection(self, section):
         return dict(self.parser.items(section))
 
-    def loadAndIncrementNE(self) -> dict:
+    def loadNEData(self) -> dict:
         expDict = self.readSection("NE")
+        return expDict
+
+    def rewrite(self, path):
+        with open(path, 'w') as configfile:
+            self.parser.write(configfile)
+
+    def incrementNE(self):
+        expDict = self.loadNEData()
         base = str(expDict.get("base"))
+
         if not os.path.exists(base):
             os.mkdir(base)
         old = int(self.parser.get("NE", "rev"))
         file = base + str(old) + "/"
+
         if not os.path.exists(file):
             os.mkdir(file)
         self.rewrite(file + "config.ini")
 
         self.parser.set("NE", "rev", str(old + 1))
         self.rewrite(self.path)
-        return expDict
-
-    def rewrite(self, path):
-        with open(path, 'w') as configfile:
-            self.parser.write(configfile)
 
     def turnOffSync(self):
         world = self.client.get_world()

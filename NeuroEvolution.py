@@ -64,7 +64,9 @@ class NeuroEvolution(QObject):
         '''
         at = vehicle.vehicleID
         crossings, errDec, collisions, penaltyAndRewards = vehicle.record()
-        self.fit[0, at] = abs(crossings) * 2 + errDec * 0.1 + collisions * 10000 + penaltyAndRewards
+        fitValue = abs(crossings) * 5 + errDec * 0.1 + collisions * 50000 + penaltyAndRewards
+        self.fit[0, at] = fitValue
+        print(f"Vehicle {at} finished with fitness: {fitValue}")
 
     def perform(self):
         self.minFit.append(np.min(self.fit))

@@ -43,7 +43,7 @@ class CarlaEnvironment(QObject):
 
         self.client = carla.Client('localhost', 2000)
         self.config = CarlaConfig(self.client)
-        self.NE = NeuroEvolution(self.config.loadAndIncrementNE())
+        self.NE = NeuroEvolution(self.config.loadNEData())
         self.faLineDetector = FALineDetector()
         self.MAX_ID = self.NE.popSize
 
@@ -53,7 +53,7 @@ class CarlaEnvironment(QObject):
         self.blueprints = self.world.get_blueprint_library()
         self.map = self.world.get_map()
 
-        print("INIT DONE")
+        print("CARLA ENVIRONMENT DONE")
 
     def tick(self):
         '''
@@ -103,12 +103,14 @@ class CarlaEnvironment(QObject):
                     self.main.terminate()
 
     def train(self):
+        self.config.incrementNE()
         for i in range(self.NE.numCycle):
             print(f"Starting EPOCH {i}/{self.NE.numCycle-1}")
             # run one training epoch
             self.trainingRide()
             self.NE.perform()
         self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
+        self.main.terminate()
 
     def spawnVehicleToStart(self, testRide, numRevision=0):
         '''
