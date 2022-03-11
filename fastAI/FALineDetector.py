@@ -1,7 +1,7 @@
 import copy
 import os
 import torch
-
+import warnings
 import cv2
 import numpy as np
 
@@ -29,6 +29,7 @@ class FALineDetector:
         self.cg = CameraGeometry()
         self.cut_v, self.grid = self.cg.precompute_grid()
         self.init(isMain)
+        warnings.filterwarnings("error")
 
     def importModels(self, aug, ismain):
         if ismain:
@@ -68,8 +69,14 @@ class FALineDetector:
         cv2.waitKey()
 
     def extractPolynomials(self):
-        leftPolynomial = self.fit(self.left)
-        rightPolynomial = self.fit(self.right)
+        try:
+            leftPolynomial = self.fit(self.left)
+            rightPolynomial = self.fit(self.right)
+        # in specific conditions, LineDetector is not relevant, so we rather not use this detected lines
+        # numpy will return Warning, which we change to an Error to be able catching it.
+        except:
+            leftPolynomial = np.poly1d(np.array([0., 0., 0., 0.]))
+            rightPolynomial = np.poly1d(np.array([0., 0., 0., 0.]))
         return leftPolynomial, rightPolynomial
 
     def fit(self, probs):

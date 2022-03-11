@@ -10,7 +10,7 @@ import random
 from fastai.vision.all import *
 import sys
 sys.path.insert(0, "fastAI")
-from fastAI import get_image_array_from_fn, label_func
+from fastAI.fastAI import get_image_array_from_fn, label_func
 import time
 import signal
 import sys
@@ -79,7 +79,13 @@ def compare(numImages):
     fig.savefig('figs\\Compare.png')
 
 
+def pyplot():
+    arr = []
+    for _ in range(10):
+        arr.append(10000)
+    plt.plot(np.asarray(arr))
+    plt.show()
+
 
 if __name__ == '__main__':
-    cc = CarlaEnvironment(1, True)
-    cc.testRide()
+    pyplot()

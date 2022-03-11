@@ -1,3 +1,5 @@
+import os.path
+
 import numpy as np
 import time
 
@@ -46,13 +48,13 @@ class NeuroEvolution(QObject):
         # for saving
         self.base = str(nnConfig.get("base"))
         self.rev = str(nnConfig.get("rev"))
-        self.fileBest = self.base + f'best{self.rev}.csv'
-        self.fileGraph = self.base + f"GA{self.rev}.png"
+        self.fileBest = self.base + f'{self.rev}/best.csv'
+        self.fileEvol = self.base + f"{self.rev}/evol.csv"
 
         # initial params
         self.pop = genetic.genrpop(self.popSize, initSpace)
         self.minFit = []
-        self.fit = np.ones((1, self.popSize)) * np.inf
+        self.fit = np.ones((1, self.popSize)) * 100000
 
     def singleFit(self, vehicle: Vehicle.Vehicle):
         '''
@@ -61,12 +63,14 @@ class NeuroEvolution(QObject):
         :return: Nothing
         '''
         at = vehicle.vehicleID
-        crossings, errDec, collisions, penalty = vehicle.record()
-        self.fit[0, at] = crossings * 2 + errDec * 0.1 + collisions * 10000 + penalty
+        crossings, errDec, collisions, penaltyAndRewards = vehicle.record()
+        fitValue = abs(crossings) * 5 + errDec * 0.1 + collisions * 50000 + penaltyAndRewards
+        self.fit[0, at] = fitValue
+        print(f"Vehicle {at} finished with fitness: {fitValue}")
 
     def perform(self):
         self.minFit.append(np.min(self.fit))
-
+        print(f"Done epochs: {len(self.minFit)}/{self.numCycle}, BestFit: {np.min(self.fit)}")
         Best = genetic.selsort(self.pop, self.fit, 1)
         BestPop = genetic.selsort(self.pop, self.fit, self.nBest)
         WorkPop1 = genetic.selrand(self.pop, self.fit, self.nWork1)
@@ -88,6 +92,10 @@ class NeuroEvolution(QObject):
         self.nn.setWeights(weights)
         return self.nn
 
+    def getNeuralNetworkToTest(self, weights):
+        self.nn.setWeights(weights)
+        return self.nn
+
     def calculateParamsOfGeneticAlgorithm(self, conf: dict):
         '''
         Loads config and sets values of pop
@@ -103,17 +111,8 @@ class NeuroEvolution(QObject):
         self.nWork2 = int(work2Percentage * popSizeWithoutBest)
         self.nGenerate = popSizeWithoutBest - self.nBest - self.nWork1 - self.nWork2
 
-    def plotEvolution(self):
-        plot = plt.figure(1)
-        plt.plot(np.asarray(self.minFit))
-        plt.title("Priebeh evolúcie fitness funkcie")
-        plt.xlabel("Cykly")
-        plt.ylabel("Hodnota fitness funkcie")
-        plt.savefig(self.fileGraph)
-        plt.show()
-
     def finishNeuroEvolutionProcess(self):
         Best = genetic.selsort(self.pop, self.fit, 1)
         np.savetxt(self.fileBest, Best, delimiter=',')
-        #data = np.loadtxt('data.csv', delimiter=',') // LOADING afterwards
-        self.plotEvolution()
+        evol = np.asarray(self.minFit)
+        np.savetxt(self.fileEvol, evol, delimiter=',')

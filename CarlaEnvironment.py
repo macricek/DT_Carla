@@ -6,6 +6,7 @@ from Vehicle import Vehicle
 from CarlaConfig import CarlaConfig
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
 from NeuroEvolution import NeuroEvolution
+import numpy as np
 from fastAI.FALineDetector import FALineDetector
 
 # from Carla doc
@@ -21,6 +22,7 @@ import carla
 
 class CarlaEnvironment(QObject):
     debug: bool
+    trainingMode: bool
     config: CarlaConfig
     NE: NeuroEvolution
     # lists
@@ -42,17 +44,17 @@ class CarlaEnvironment(QObject):
 
         self.client = carla.Client('localhost', 2000)
         self.config = CarlaConfig(self.client)
-        self.NE = NeuroEvolution(self.config.loadAndIncrementNE())
+        self.NE = NeuroEvolution(self.config.loadNEData())
         self.faLineDetector = FALineDetector()
         self.MAX_ID = self.NE.popSize
-
+        self.trainingMode = False
         self.trafficManager = self.client.get_trafficmanager()
         self.trafficManager.set_synchronous_mode(self.config.sync)
         self.world = self.client.get_world()
         self.blueprints = self.world.get_blueprint_library()
         self.map = self.world.get_map()
 
-        print("INIT DONE")
+        print("CARLA ENVIRONMENT DONE")
 
     def tick(self):
         '''
@@ -63,8 +65,9 @@ class CarlaEnvironment(QObject):
         tickNum = self.world.tick()
         return tickNum
 
-    def testRide(self):
-        self.spawnVehicleToStart(True)
+    def testRide(self, numRevision):
+        self.trainingMode = False
+        self.spawnVehicleToStart(True, numRevision)
         '''
         Spawn one car and "simulate" ride through waypoints
         :return: Nothing
@@ -98,26 +101,34 @@ class CarlaEnvironment(QObject):
                             self.deleteVehicle(veh)
                         break
                 except:
-                    self.NE.finishNeuroEvolutionProcess()
                     self.main.terminate()
 
     def train(self):
+        self.trainingMode = True
+        self.config.incrementNE()
         for i in range(self.NE.numCycle):
             print(f"Starting EPOCH {i}/{self.NE.numCycle-1}")
             # run one training epoch
             self.trainingRide()
             self.NE.perform()
-        self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
+            self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
+        self.main.terminate()
 
-    def spawnVehicleToStart(self, vehDebug):
+    def spawnVehicleToStart(self, testRide, numRevision=0):
         '''
         Spawn vehicle to starting spot (spawnPoint[99]) and create it.
         :return: Nothing
         '''
         spawnPoints = self.map.get_spawn_points()
         start = spawnPoints[99]
-        vehicle = Vehicle(self, start, id=self.id, neuralNetwork=self.NE.getNeuralNetwork(self.id))
-        vehicle.debug = vehDebug
+        if not testRide:
+            neuralNetwork = self.NE.getNeuralNetwork(self.id)
+        else:
+            weightsFile = f'results/{numRevision}/best.csv'
+            weights = np.loadtxt(weightsFile, delimiter=',')
+            neuralNetwork = self.NE.getNeuralNetworkToTest(weights)
+        vehicle = Vehicle(self, spawnLocation=start, id=self.id, neuralNetwork=neuralNetwork)
+        vehicle.applyConfig(testRide)
         self.vehicles.append(vehicle)
         self.handleVehicleId()
 

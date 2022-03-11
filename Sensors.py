@@ -24,11 +24,14 @@ class SensorManager(QtCore.QObject):
         super().__init__()
         self._queues = []
         self.sensors = []
+        self.cameras = []
         self.count = 0
         self.readySensors = 0
         self.vehicle = vehicle
+
         self.environment = environment
         self.config = environment.config
+        self.debug = not environment.trainingMode
 
         self.ldCam = LineDetectorCamera(self, False, False)
         self.rgbCam = Camera(self, False, False)
@@ -60,14 +63,17 @@ class SensorManager(QtCore.QObject):
         # CAMERAS
         if convertStringToBool(settings.get("linedetectorcamera")):
             self.sensors.append(self.ldCam)
+            self.cameras.append(self.ldCam)
         if convertStringToBool(settings.get("defaultcamera")):
             self.sensors.append(self.rgbCam)
+            self.cameras.append(self.rgbCam)
         if convertStringToBool(settings.get("segmentationcamera")):
             self.sensors.append(self.segCam)
+            self.cameras.append(self.segCam)
 
     def activate(self):
         for sensor in self.sensors:
-            print(f"Activating {self.count}: {sensor.name}")
+            self.print(f"Activating {self.count}: {sensor.name}")
             self.count += 1
             sensor.activate()
 
@@ -85,10 +91,19 @@ class SensorManager(QtCore.QObject):
         return retLeft, retRight
 
     def destroy(self):
-        print(f"Invoking deletion of sensors of {self.vehicle.vehicleID} vehicle!")
+        self.print(f"Invoking deletion of sensors of {self.vehicle.vehicleID} vehicle!")
         for sensor in self.sensors:
-            print(f"Deleting sensor {sensor.name}")
+            self.print(f"Deleting sensor {sensor.name}")
             sensor.destroy()
+
+    def print(self, message):
+        if self.debug:
+            print(message)
+
+    def applyTesting(self):
+        self.debug = True
+        for camera in self.cameras:
+            camera.show = True
 
 
 class Sensor(QtCore.QObject):
@@ -317,8 +332,9 @@ class Camera(Sensor):
         if self.drawingThread is not None:
             self.show = False
             self.stop = True  # break showing threads
-            while self.stop:
-                self.manager.environment.tick()
+            for _ in range(10):
+                if self.stop:
+                    self.manager.environment.tick()
             self.drawingThread = None
         super(Camera, self).destroy()
 
