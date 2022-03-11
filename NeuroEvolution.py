@@ -47,12 +47,9 @@ class NeuroEvolution(QObject):
 
         # for saving
         self.base = str(nnConfig.get("base"))
-        if not os.path.exists(self.base):
-            os.mkdir(self.base)
         self.rev = str(nnConfig.get("rev"))
         self.fileBest = self.base + f'best{self.rev}.csv'
-        self.fileGraph = self.base + f"GA{self.rev}.png"
-        self.fileEvol = self.base + f"Evol{self.rev}.csv"
+        self.fileEvol = self.base + f"evol{self.rev}.csv"
 
         # initial params
         self.pop = genetic.genrpop(self.popSize, initSpace)
@@ -90,6 +87,10 @@ class NeuroEvolution(QObject):
         :return: NN object
         '''
         weights = self.pop[at, :]
+        self.nn.setWeights(weights)
+        return self.nn
+
+    def getNeuralNetworkToTest(self, weights):
         self.nn.setWeights(weights)
         return self.nn
 

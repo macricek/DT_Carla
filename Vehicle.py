@@ -204,6 +204,11 @@ class Vehicle(QObject):
         else:
             return False
 
+    def applyConfig(self, testing):
+        self.debug = testing
+        if testing:
+            self.sensorManager.applyTesting()
+
     def getLocation(self):
         '''
         FILLS self.location with location of VEHICLE

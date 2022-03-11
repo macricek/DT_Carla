@@ -6,6 +6,7 @@ from Vehicle import Vehicle
 from CarlaConfig import CarlaConfig
 from PyQt5.QtCore import QObject, pyqtSignal, QThread
 from NeuroEvolution import NeuroEvolution
+import numpy as np
 from fastAI.FALineDetector import FALineDetector
 
 # from Carla doc
@@ -63,8 +64,8 @@ class CarlaEnvironment(QObject):
         tickNum = self.world.tick()
         return tickNum
 
-    def testRide(self):
-        self.spawnVehicleToStart(True)
+    def testRide(self, numRevision):
+        self.spawnVehicleToStart(True, numRevision)
         '''
         Spawn one car and "simulate" ride through waypoints
         :return: Nothing
@@ -109,15 +110,21 @@ class CarlaEnvironment(QObject):
             self.NE.perform()
         self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
 
-    def spawnVehicleToStart(self, vehDebug):
+    def spawnVehicleToStart(self, testRide, numRevision=0):
         '''
         Spawn vehicle to starting spot (spawnPoint[99]) and create it.
         :return: Nothing
         '''
         spawnPoints = self.map.get_spawn_points()
         start = spawnPoints[99]
-        vehicle = Vehicle(self, start, id=self.id, neuralNetwork=self.NE.getNeuralNetwork(self.id))
-        vehicle.debug = vehDebug
+        if not testRide:
+            neuralNetwork = self.NE.getNeuralNetwork(self.id)
+        else:
+            weightsFile = f'results/{numRevision}/best.csv'
+            weights = np.loadtxt(weightsFile, delimiter=',')
+            neuralNetwork = self.NE.getNeuralNetworkToTest(weights)
+        vehicle = Vehicle(self, spawnLocation=start, id=self.id, neuralNetwork=neuralNetwork)
+        vehicle.applyConfig(testRide)
         self.vehicles.append(vehicle)
         self.handleVehicleId()
 
