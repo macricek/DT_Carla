@@ -94,6 +94,7 @@ class NeuralNetwork:
         :return: outputs array
         '''
         assert inputs.shape[0] == self.nInput
+        inputs = inputs * 3
         W1, W2, W3, BI, BH1, BH2, BO = self.parse()
 
         X = np.zeros((1, self.nInput))
@@ -125,3 +126,7 @@ class NeuralNetwork:
         leftNormalized = left / leftNCoef
         rightNormalized = right / rightNCoef
         return np.concatenate((leftNormalized, rightNormalized), axis=0)
+
+    @staticmethod
+    def normalizeRadarInputs(radar: np.ndarray) -> np.ndarray:
+        return 1 - radar / 50
