@@ -108,20 +108,8 @@ class NeuroEvolution(QObject):
         self.nWork2 = int(work2Percentage * popSizeWithoutBest)
         self.nGenerate = popSizeWithoutBest - self.nBest - self.nWork1 - self.nWork2
 
-    def plotEvolution(self):
-        evol = np.asarray(self.minFit)
-        np.savetxt(self.fileEvol, evol, delimiter=',')
-        plt.plot(evol)
-        plt.title("Priebeh evolúcie fitness funkcie")
-        plt.xlabel("Cykly")
-        plt.ylabel("Hodnota fitness funkcie")
-        plt.savefig(self.fileGraph)
-        plt.show()
-
     def finishNeuroEvolutionProcess(self):
         Best = genetic.selsort(self.pop, self.fit, 1)
         np.savetxt(self.fileBest, Best, delimiter=',')
         evol = np.asarray(self.minFit)
         np.savetxt(self.fileEvol, evol, delimiter=',')
-        #data = np.loadtxt('data.csv', delimiter=',') // LOADING afterwards
-        #self.plotEvolution()
