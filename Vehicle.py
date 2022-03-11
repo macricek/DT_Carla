@@ -135,27 +135,31 @@ class Vehicle(QObject):
     def getControl(self, useDirectlyAgent=False):
         control = self.agentAction()
 
-        if useDirectlyAgent:
-            self.steer = control.steer
-            return control
-
         agentSteer = control.steer
         left, right = self.sensorManager.lines()
+        radar = self.sensorManager.radarMeasurement()
         if np.sum(left) == 0 or np.sum(right) == 0:
             self.print("Lines wasn't detected correctly")
             neuralSteer = agentSteer
         else:
-            inputs = self.nn.normalizeLinesInputs(left, right)
-            neuralSteer = self.steer + self.nn.run(inputs, 0.1)[0][0]
+            inputsLines = self.nn.normalizeLinesInputs(left, right)
+            inputsRadar = self.nn.normalizeRadarInputs(radar)
+            inputA = np.array([agentSteer/0.8])
+            inputs = np.concatenate((inputsLines, inputsRadar, inputA), axis=0)
+            outputNeural = self.nn.run(inputs, 0.1)[0][0]
+            neuralSteer = self.steer + outputNeural
 
-        if neuralSteer > 1:
-            self.steer = 1
-        elif neuralSteer < -1:
-            self.steer = -1
+        if neuralSteer > 0.8:
+            self.steer = 0.8
+        elif neuralSteer < -0.8:
+            self.steer = -0.8
         else:
             self.steer = neuralSteer
 
-        control.steer = self.steer
+        if useDirectlyAgent:
+            self.steer = control.steer
+        else:
+            control.steer = self.steer
 
         return control
 
