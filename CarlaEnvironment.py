@@ -79,7 +79,8 @@ class CarlaEnvironment(QObject):
                 if len(self.runStep(tickNum)) > 0:
                     self.main.terminate()
                     break
-            except:
+            except Exception as e:
+                print(e)
                 self.main.terminate()
 
     def trainingRide(self):
@@ -100,7 +101,8 @@ class CarlaEnvironment(QObject):
                             print(f"Vehicle {veh.vehicleID} done!")
                             self.deleteVehicle(veh)
                         break
-                except:
+                except Exception as e:
+                    print(e)
                     self.main.terminate()
 
     def train(self):
