@@ -61,12 +61,43 @@ class NeuroEvolution(QObject):
         Calculate fit value of single vehicle solution
         :param vehicle: Vehicle object
         :return: Nothing
+
+        loadedDict = {'crossings': self.__crossings,
+                   'collisions': self.__collisions,
+                   'inCycle': self.__inCycle,
+                   'rangeDriven': self.__rangeDriven,
+                   'reachedGoals': self.__reachedGoals,
+                   'error': self.__errDec}
         '''
         at = vehicle.vehicleID
-        crossings, errDec, collisions, penaltyAndRewards = vehicle.record()
-        fitValue = abs(crossings) * 5 + errDec * 0.1 + collisions * 50000 + penaltyAndRewards
+        loadedDict = vehicle.record()
+
+        crossings = loadedDict.get('crossings')
+        collisions = loadedDict.get('collisions')
+        inCycle = loadedDict.get('inCycle')
+        rangeDriven = loadedDict.get('rangeDriven')
+        reachedGoals = loadedDict.get('reachedGoals')
+        error = loadedDict.get('error')
+
+        cCrossings = 10
+        cCollisions = 50000
+        cInCycle = 25000
+        cError = 0.1
+        cRangeDriven = -2
+        cReachedGoals = -10000
+
+        fitValue = cCrossings * crossings + cError * error + cCollisions * collisions + \
+                   cInCycle * inCycle + cRangeDriven * rangeDriven + cReachedGoals * reachedGoals
+
         self.fit[0, at] = fitValue
+
         print(f"Vehicle {at} finished with fitness: {fitValue}")
+        print(f"Crossings: {crossings}, fit: {cCrossings * crossings}")
+        print(f"Collisions: {collisions}, fit: {cCollisions * collisions}")
+        print(f"In cycle: {inCycle}, fit: {cInCycle * inCycle}")
+        print(f"Error: {error}, fit: {cError * error}")
+        print(f"Range: {rangeDriven}, fit: {cRangeDriven * rangeDriven}")
+        print(f"Reached goals: {reachedGoals}, fit: {cReachedGoals * reachedGoals}")
 
     def perform(self):
         self.minFit.append(np.min(self.fit))
