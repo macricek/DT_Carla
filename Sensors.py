@@ -282,13 +282,6 @@ class LaneInvasionDetector(Sensor):
             self.crossings += 1
         self.lastCross = frameCrossed
 
-    def status(self):
-        print(f"Crossings: {self.crossings}, last at: {self.lastCross}")
-
-    def destroy(self):
-        self.status()
-        super(LaneInvasionDetector, self).destroy()
-
 
 class Camera(Sensor):
     name: str

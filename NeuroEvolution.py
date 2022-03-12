@@ -91,6 +91,7 @@ class NeuroEvolution(QObject):
 
         self.fit[0, at] = fitValue
 
+        print('\n-----------------------------------------------------------------------\n')
         print(f"Vehicle {at} finished with fitness: {fitValue}")
         print(f"Crossings: {crossings}, fit: {cCrossings * crossings}")
         print(f"Collisions: {collisions}, fit: {cCollisions * collisions}")
@@ -98,6 +99,7 @@ class NeuroEvolution(QObject):
         print(f"Error: {error}, fit: {cError * error}")
         print(f"Range: {rangeDriven}, fit: {cRangeDriven * rangeDriven}")
         print(f"Reached goals: {reachedGoals}, fit: {cReachedGoals * reachedGoals}")
+        print('\n-----------------------------------------------------------------------\n')
 
     def perform(self):
         self.minFit.append(np.min(self.fit))
