@@ -186,6 +186,10 @@ class RadarSensor(Sensor):
         self.centerRange = range(atDeg[1] - mR, atDeg[1] + mR)
         self.rightRange = range(atDeg[2] - mR, atDeg[2] + mR)
 
+        self.left = 0
+        self.right = 0
+        self.center = 0
+
     def callBack(self, data):
         left = []
         right = []
@@ -202,17 +206,12 @@ class RadarSensor(Sensor):
             elif azi in self.rightRange:
                 right.append(dist)
 
-        self.left = fmean(left)
-        self.right = fmean(right)
-        self.center = fmean(center)
+        self.left = fmean(left) if len(left) > 0 else 0
+        self.right = fmean(right) if len(right) > 0 else 0
+        self.center = fmean(center) if len(center) > 0 else 0
 
     def returnAverageRanges(self) -> np.ndarray:
-        try:
-            out = np.array([self.left, self.center, self.right])
-        except:
-            out = np.array([0., 0., 0.])
-
-        return out
+        return np.array([self.left, self.center, self.right])
 
 
 class CollisionSensor(Sensor):
