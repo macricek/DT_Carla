@@ -22,8 +22,8 @@ def plotFastAIComparation():
 
 
 def plotGeneticResults(numRevision):
-    evolFile = f'../results/{numRevision}/evol.csv'
-    weightsFile = f'../results/{numRevision}/best.csv'
+    evolFile = f'results/{numRevision}/evol.csv'
+    weightsFile = f'results/{numRevision}/best.csv'
     evol = np.loadtxt(evolFile, delimiter=',')
     weights = np.loadtxt(weightsFile, delimiter=',')
 
@@ -47,7 +47,7 @@ def plotGeneticResults(numRevision):
 
 
 if __name__ == '__main__':
-    plotGeneticResults(17)
+    plotGeneticResults(1)
     plt.show()
 
 
