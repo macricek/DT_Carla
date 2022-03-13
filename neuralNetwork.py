@@ -46,7 +46,7 @@ class NeuralNetwork:
         :return: size of weights, biases [INT, INT]
         '''
         szW = self.nInput * self.nHidden[0] + self.nOutput * self.nHidden[1]
-        szB = self.nInput + self.nOutput + self.nHidden[-1]
+        szB = self.nOutput + self.nHidden[-1]
         for i in range(0, self.nHiddenLayers - 1):
             szW += self.nHidden[i] * self.nHidden[i + 1]
             szB += self.nHidden[i]
@@ -65,9 +65,7 @@ class NeuralNetwork:
         idxW3start = idxW2end
         idxW3end = idxW3start + self.nHidden[1] * self.nOutput
         # biases index
-        idxBIstart = idxW3end
-        idxBIend = idxBIstart + self.nInput
-        idxBH1start = idxBIend
+        idxBH1start = idxW3end
         idxBH1end = idxBH1start + self.nHidden[0]
         idxBH2start = idxBH1end
         idxBH2end = idxBH2start + self.nHidden[1]
@@ -80,11 +78,10 @@ class NeuralNetwork:
         W2 = np.reshape(self.weights[idxW2start:idxW2end], (self.nHidden[0], self.nHidden[1]))
         W3 = np.reshape(self.weights[idxW3start:idxW3end], (self.nHidden[1], self.nOutput))
         # biases parsing
-        BI = self.weights[idxBIstart:idxBIend]
         BH1 = self.weights[idxBH1start:idxBH1end]
         BH2 = self.weights[idxBH2start:idxBH2end]
         BO = self.weights[idxBOstart:idxBOend]
-        return W1, W2, W3, BI, BH1, BH2, BO
+        return W1, W2, W3, BH1, BH2, BO
 
     def run(self, inputs, limit):
         '''
@@ -94,20 +91,18 @@ class NeuralNetwork:
         :return: outputs array
         '''
         assert inputs.shape[0] == self.nInput
-        inputs = inputs * 3
-        W1, W2, W3, BI, BH1, BH2, BO = self.parse()
+        W1, W2, W3, BH1, BH2, BO = self.parse()
 
         X = np.zeros((1, self.nInput))
         H1 = np.zeros((1, self.nHidden[0]))
         H2 = np.zeros((1, self.nHidden[1]))
         O = np.zeros((1, self.nOutput))
 
-        for i in range(0, self.nInput):
-            X[0, i] = math.tanh(inputs[i] + BI[i])
+        X = inputs
 
         tmp = X @ W1 + BH1
         for i in range(0, self.nHidden[0]):
-            H1[0, i] = math.tanh(tmp[0, i])
+            H1[0, i] = math.tanh(tmp[i])
 
         tmp = H1 @ W2 + BH2
         for i in range(0, self.nHidden[1]):
