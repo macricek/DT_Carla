@@ -32,7 +32,7 @@ def plotGeneticResults(numRevision):
     plt.title("Priebeh evolúcie fitness funkcie")
     plt.xlabel("Cykly")
     plt.ylabel("Hodnota fitness funkcie")
-    plt.savefig(f'../results/{numRevision}/genetic.png')
+    plt.savefig(f'results/{numRevision}/genetic.png')
 
     plt.figure(1)
     biases = weights[231:-1]
@@ -43,11 +43,11 @@ def plotGeneticResults(numRevision):
     plt.title("Vizualizácia váh")
     plt.xlabel("Poradové číslo váhy/biasu")
     plt.ylabel("Hodnota váhy/biasu")
-    plt.savefig(f'../results/{numRevision}/visWB.png')
+    plt.savefig(f'results/{numRevision}/visWB.png')
 
 
 if __name__ == '__main__':
-    plotGeneticResults(7)
+    plotGeneticResults(17)
     plt.show()
 
 
