@@ -79,11 +79,11 @@ class NeuroEvolution(QObject):
         reachedGoals = loadedDict.get('reachedGoals')
         error = loadedDict.get('error')
 
-        cCrossings = 10
+        cCrossings = 100
         cCollisions = 50000
-        cInCycle = 25000
-        cError = 0.1
-        cRangeDriven = -2
+        cInCycle = 50000
+        cError = 1
+        cRangeDriven = -3
         cReachedGoals = -10000
 
         fitValue = cCrossings * crossings + cError * error + cCollisions * collisions + \
@@ -102,6 +102,8 @@ class NeuroEvolution(QObject):
         print('\n-----------------------------------------------------------------------\n')
 
     def perform(self):
+        if len(self.minFit) > 0:
+            self.fit[0, 0] = self.minFit[-1]
         self.minFit.append(np.min(self.fit))
         print(f"Done epochs: {len(self.minFit)}/{self.numCycle}, BestFit: {np.min(self.fit)}")
         Best = genetic.selsort(self.pop, self.fit, 1)
