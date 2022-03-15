@@ -79,16 +79,21 @@ class CarlaEnvironment(QObject):
                 if len(self.runStep(tickNum)) > 0:
                     self.main.terminate()
                     break
-            except:
+            except Exception as e:
+                print(e)
                 self.main.terminate()
 
-    def trainingRide(self):
+    def trainingRide(self, epoch):
         '''
         Handles one epoch of training!
         :return: Nothing
         '''
         print("Starting training")
-        for _ in range(self.MAX_ID):
+        for i in range(self.MAX_ID):
+            if epoch != 0 and i == 0:
+                # do not run best solutions again!
+                continue
+            self.id = i
             self.spawnVehicleToStart(False)
             while True:
                 try:
@@ -100,7 +105,8 @@ class CarlaEnvironment(QObject):
                             print(f"Vehicle {veh.vehicleID} done!")
                             self.deleteVehicle(veh)
                         break
-                except:
+                except Exception as e:
+                    print(e)
                     self.main.terminate()
 
     def train(self):
@@ -109,7 +115,7 @@ class CarlaEnvironment(QObject):
         for i in range(self.NE.numCycle):
             print(f"Starting EPOCH {i}/{self.NE.numCycle-1}")
             # run one training epoch
-            self.trainingRide()
+            self.trainingRide(i)
             self.NE.perform()
             self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
         self.main.terminate()
@@ -130,7 +136,6 @@ class CarlaEnvironment(QObject):
         vehicle = Vehicle(self, spawnLocation=start, id=self.id, neuralNetwork=neuralNetwork)
         vehicle.applyConfig(testRide)
         self.vehicles.append(vehicle)
-        self.handleVehicleId()
 
     def runStep(self, tickNum):
         '''
@@ -142,12 +147,6 @@ class CarlaEnvironment(QObject):
             if not vehicle.run(tickNum):
                 endedVehicles.append(vehicle)
         return endedVehicles
-
-    def handleVehicleId(self):
-        if self.id < self.MAX_ID - 1:
-            self.id += 1
-        else:
-            self.id = 0
 
     def deleteVehicle(self, vehicle):
         for v in self.vehicles:

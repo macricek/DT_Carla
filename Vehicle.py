@@ -1,3 +1,4 @@
+import copy
 import datetime
 
 import carla
@@ -48,7 +49,9 @@ class Vehicle(QObject):
     __crossings = 0
     __errDec = 0
     __collisions = 0
-    __fit = 0
+    __inCycle = 0
+    __reachedGoals = 0
+    __rangeDriven = 0
 
     def __init__(self, environment, spawnLocation, neuralNetwork, id):
         super(Vehicle, self).__init__()
@@ -63,8 +66,7 @@ class Vehicle(QObject):
         self.speed = 0
         self.vehicleStopped = 0
         self.steer = 0
-        self.done = False
-        self.getLocation()
+        self.lastLocation = self.getLocation()
 
         self.initAgent(spawnLocation.location)
         self.sensorManager = SensorManager(self, self.environment)
@@ -83,7 +85,7 @@ class Vehicle(QObject):
             return False
         if self.standing() or self.inCycle():
             print("Standing/In cycle, penalization!")
-            self.__fit += 10000
+            self.__inCycle += 1
             return False
         # there will NN decide
         self.sensorManager.processSensors()
@@ -126,36 +128,54 @@ class Vehicle(QObject):
     def record(self):
         self.__crossings = self.sensorManager.laneInvasionDetector.crossings
         self.__collisions = 1 if self.sensorManager.isCollided() else 0
+        retDict = {'crossings': self.__crossings,
+                   'collisions': self.__collisions,
+                   'inCycle': self.__inCycle,
+                   'rangeDriven': self.__rangeDriven,
+                   'reachedGoals': self.__reachedGoals,
+                   'error': self.__errDec}
 
-        return self.__crossings, self.__errDec, self.__collisions, self.__fit
+        return retDict
 
     def recordEachStep(self, agentSteer):
         self.__errDec += abs(agentSteer - self.steer)
 
+        distLast = self.errInLocation(self.lastLocation, self.goal)
+        self.lastLocation = self.getLocation()
+        distNow = self.errInLocation(self.location, self.goal)
+        difference = distLast - distNow
+        self.__rangeDriven += difference if 10 > difference > -5 else 0
+
     def getControl(self, useDirectlyAgent=False):
         control = self.agentAction()
 
-        if useDirectlyAgent:
-            self.steer = control.steer
-            return control
-
         agentSteer = control.steer
         left, right = self.sensorManager.lines()
+        radar = self.sensorManager.radarMeasurement()
         if np.sum(left) == 0 or np.sum(right) == 0:
             self.print("Lines wasn't detected correctly")
             neuralSteer = agentSteer
         else:
-            inputs = self.nn.normalizeLinesInputs(left, right)
-            neuralSteer = self.steer + self.nn.run(inputs, 0.1)[0][0]
+            inputsLines = self.nn.normalizeLinesInputs(left, right)
+            inputsRadar = self.nn.normalizeRadarInputs(radar)
+            inputA = np.array([agentSteer/0.8])
+            inputs = np.concatenate((inputsLines, inputsRadar, inputA), axis=0)
+            outputNeural = self.nn.run(inputs, 0.1)[0][0]
+            neuralSteer = self.steer + outputNeural
 
-        if neuralSteer > 1:
-            self.steer = 1
-        elif neuralSteer < -1:
-            self.steer = -1
+        if neuralSteer > 0.8:
+            self.steer = 0.8
+        elif neuralSteer < -0.8:
+            self.steer = -0.8
         else:
             self.steer = neuralSteer
 
-        control.steer = self.steer
+        if useDirectlyAgent:
+            self.steer = control.steer
+        else:
+            control.steer = self.steer
+
+        self.recordEachStep(agentSteer)
 
         return control
 
@@ -168,7 +188,7 @@ class Vehicle(QObject):
         dist = self.diffToLocation(self.goal)
         self.print(f"Distance to goal is: {dist}")
         if dist < 0.2 or self.agent.done():
-            self.__fit -= 1000
+            self.__reachedGoals += 1
             if not self.path.empty():
                 self.goal = self.path.get()
             else:
@@ -193,15 +213,7 @@ class Vehicle(QObject):
 
     def inCycle(self):
         now = time.time()
-        timeBool = now > 300 + self.startTime # gives timeout 5 min
-
-        if len(self.toGoal) >= 2:
-            L1 = self.toGoal.pop()
-            L2 = self.toGoal.pop()
-            #maybe Rework to see all changes
-            self.__fit -= L1 - L2
-            self.toGoal.append(L2)
-            self.toGoal.append(L1)
+        timeBool = now > 300 + self.startTime  # gives timeout 5 min
 
         if len(self.toGoal) < self.toGoal.maxlen:
             dequeBool = False
@@ -237,9 +249,8 @@ class Vehicle(QObject):
 
     @staticmethod
     def errInLocation(l1: carla.Location, l2: carla.Location):
-        diffX = math.sqrt((l1.x - l2.x)**2)
-        diffY = math.sqrt((l1.y - l2.y)**2)
-        return diffX, diffY
+        dist = l1.distance(l2)
+        return dist
 
     def getSpeed(self):
         '''

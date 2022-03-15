@@ -22,8 +22,8 @@ def plotFastAIComparation():
 
 
 def plotGeneticResults(numRevision):
-    evolFile = f'../results/{numRevision}/evol.csv'
-    weightsFile = f'../results/{numRevision}/best.csv'
+    evolFile = f'results/{numRevision}/evol.csv'
+    weightsFile = f'results/{numRevision}/best.csv'
     evol = np.loadtxt(evolFile, delimiter=',')
     weights = np.loadtxt(weightsFile, delimiter=',')
 
@@ -32,18 +32,18 @@ def plotGeneticResults(numRevision):
     plt.title("Priebeh evolúcie fitness funkcie")
     plt.xlabel("Cykly")
     plt.ylabel("Hodnota fitness funkcie")
-    plt.savefig(f'../results/{numRevision}/genetic.png')
+    plt.savefig(f'results/{numRevision}/genetic.png')
 
     plt.figure(1)
-    biases = weights[231:-1]
-    weights = weights[0:231]
+    biases = weights[210:-1]
+    weights = weights[0:210]
     plt.plot(weights, '*', label='Váhy')
     plt.plot(biases, 'o', label='Biasy')
     plt.legend()
     plt.title("Vizualizácia váh")
     plt.xlabel("Poradové číslo váhy/biasu")
     plt.ylabel("Hodnota váhy/biasu")
-    plt.savefig(f'../results/{numRevision}/visWB.png')
+    plt.savefig(f'results/{numRevision}/visWB.png')
 
 
 if __name__ == '__main__':

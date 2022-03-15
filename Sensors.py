@@ -1,4 +1,5 @@
 import copy
+from statistics import fmean
 import threading
 
 import carla
@@ -84,11 +85,14 @@ class SensorManager(QtCore.QObject):
     def isCollided(self):
         return self.collision.isCollided()
 
-    def lines(self):
+    def lines(self) -> (np.ndarray, np.ndarray):
         retLeft = copy.deepcopy(self.ldCam.left)
         retRight = copy.deepcopy(self.ldCam.right)
         self.ldCam.resetLines()
         return retLeft, retRight
+
+    def radarMeasurement(self) -> np.ndarray:
+        return self.radar.returnAverageRanges()
 
     def destroy(self):
         self.print(f"Invoking deletion of sensors of {self.vehicle.vehicleID} vehicle!")
@@ -166,23 +170,48 @@ class Sensor(QtCore.QObject):
 class RadarSensor(Sensor):
     def __init__(self, manager, debug=False):
         super().__init__(manager, debug)
-        self.velocity_range = 7.5
+        self.range = 50
         self.name = "Radar"
         self.bp = self.blueprints().find('sensor.other.radar')
-        self.bp.set_attribute('horizontal_fov', str(35))
-        self.bp.set_attribute('vertical_fov', str(20))
+        self.bp.set_attribute('horizontal_fov', str(90))
+        self.bp.set_attribute('vertical_fov', str(25))
         self.where = carla.Transform(carla.Location(x=1.5))
 
+        atDeg = [-35, 0, 35]
+        mR = 10
+
+        self.detectedFinal = []
+
+        self.leftRange = range(atDeg[0] - mR, atDeg[0] + mR)
+        self.centerRange = range(atDeg[1] - mR, atDeg[1] + mR)
+        self.rightRange = range(atDeg[2] - mR, atDeg[2] + mR)
+
+        self.left = 0
+        self.right = 0
+        self.center = 0
+
     def callBack(self, data):
-        current_rot = data.transform.rotation
-        i = 0
+        left = []
+        right = []
+        center = []
         for detect in data:
-            azi = math.degrees(detect.azimuth)
+            azi = int(math.degrees(detect.azimuth))
             alt = math.degrees(detect.altitude)
             dist = detect.depth
-            if self.debug:
-                print("Dist to {i}: {d}, Azimuth: {a}, Altitude: {al}".format(i=i, d=dist, a=azi, al=alt))
-                i += 1
+
+            if azi in self.leftRange:
+                left.append(dist)
+            elif azi in self.centerRange:
+                center.append(dist)
+            elif azi in self.rightRange:
+                right.append(dist)
+
+        self.left = fmean(left) if len(left) > 0 else 0
+        self.right = fmean(right) if len(right) > 0 else 0
+        self.center = fmean(center) if len(center) > 0 else 0
+
+    def returnAverageRanges(self) -> np.ndarray:
+        return np.array([self.left, self.center, self.right])
 
 
 class CollisionSensor(Sensor):
@@ -252,13 +281,6 @@ class LaneInvasionDetector(Sensor):
         else:
             self.crossings += 1
         self.lastCross = frameCrossed
-
-    def status(self):
-        print(f"Crossings: {self.crossings}, last at: {self.lastCross}")
-
-    def destroy(self):
-        self.status()
-        super(LaneInvasionDetector, self).destroy()
 
 
 class Camera(Sensor):
@@ -347,7 +369,7 @@ class LineDetectorCamera(Camera):
         super(LineDetectorCamera, self).__init__(manager, debug, show)
         self.name = 'LineDetection'
         self.create()
-        self.at = np.linspace(0, 30, num=5)
+        self.at = np.array([0, 7.5, 15])
         self.resetLines()
 
     def predict(self):
