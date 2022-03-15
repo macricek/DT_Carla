@@ -35,8 +35,8 @@ def plotGeneticResults(numRevision):
     plt.savefig(f'results/{numRevision}/genetic.png')
 
     plt.figure(1)
-    biases = weights[231:-1]
-    weights = weights[0:231]
+    biases = weights[210:-1]
+    weights = weights[0:210]
     plt.plot(weights, '*', label='Váhy')
     plt.plot(biases, 'o', label='Biasy')
     plt.legend()
@@ -47,7 +47,7 @@ def plotGeneticResults(numRevision):
 
 
 if __name__ == '__main__':
-    plotGeneticResults(1)
+    plotGeneticResults(7)
     plt.show()
 
 
