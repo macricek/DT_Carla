@@ -116,11 +116,11 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeLinesInputs(left: np.ndarray, right: np.ndarray) -> np.ndarray:
-        leftNCoef = np.max(np.abs(left))
-        rightNCoef = np.max(np.abs(right))
-        leftNormalized = left / leftNCoef
-        rightNormalized = right / rightNCoef
-        return np.concatenate((leftNormalized, rightNormalized), axis=0)
+        leftRight = np.concatenate((left, right), axis=0)
+        norm = np.linalg.norm(leftRight)
+        if norm == 0:
+            return leftRight
+        return leftRight / norm
 
     @staticmethod
     def normalizeRadarInputs(radar: np.ndarray) -> np.ndarray:
