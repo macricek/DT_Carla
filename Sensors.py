@@ -106,8 +106,10 @@ class SensorManager(QtCore.QObject):
 
     def applyTesting(self):
         self.debug = True
-        for camera in self.cameras:
-            camera.show = True
+        self.rgbCam.show = True
+        # TODO: idk if processor is overhelmed by many cameras or what
+        # for camera in self.cameras:
+        #     camera.show = True
 
 
 class Sensor(QtCore.QObject):
@@ -175,7 +177,7 @@ class RadarSensor(Sensor):
         self.bp = self.blueprints().find('sensor.other.radar')
         self.bp.set_attribute('horizontal_fov', str(90))
         self.bp.set_attribute('vertical_fov', str(25))
-        self.where = carla.Transform(carla.Location(x=1.5))
+        self.where = carla.Transform(carla.Location(x=1.5, z=0.5))
 
         atDeg = [-35, 0, 35]
         mR = 10
@@ -194,21 +196,22 @@ class RadarSensor(Sensor):
         left = []
         right = []
         center = []
+        lenka = len(data)
         for detect in data:
             azi = int(math.degrees(detect.azimuth))
             alt = math.degrees(detect.altitude)
             dist = detect.depth
+            if alt > 0:
+                if azi in self.leftRange:
+                    left.append(dist)
+                elif azi in self.centerRange:
+                    center.append(dist)
+                elif azi in self.rightRange:
+                    right.append(dist)
 
-            if azi in self.leftRange:
-                left.append(dist)
-            elif azi in self.centerRange:
-                center.append(dist)
-            elif azi in self.rightRange:
-                right.append(dist)
-
-        self.left = fmean(left) if len(left) > 0 else 0
-        self.right = fmean(right) if len(right) > 0 else 0
-        self.center = fmean(center) if len(center) > 0 else 0
+        self.left = fmean(left) if len(left) > 0 else 100
+        self.right = fmean(right) if len(right) > 0 else 100
+        self.center = fmean(center) if len(center) > 0 else 100
 
     def returnAverageRanges(self) -> np.ndarray:
         return np.array([self.left, self.center, self.right])

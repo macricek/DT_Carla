@@ -83,10 +83,11 @@ class Vehicle(QObject):
         if not self.me or self.sensorManager.isCollided() or self.checkGoal():
             print("Collision or Goal")
             return False
-        if self.standing() or self.inCycle():
-            print("Standing/In cycle, penalization!")
-            self.__inCycle += 1
-            return False
+        if not self.debug: #TRAINING MODE
+            if self.standing() or self.inCycle():
+                print("Standing/In cycle, penalization!")
+                self.__inCycle += 1
+                return False
         # there will NN decide
         self.sensorManager.processSensors()
         control = self.getControl()
