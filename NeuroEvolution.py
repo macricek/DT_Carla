@@ -79,12 +79,12 @@ class NeuroEvolution(QObject):
         reachedGoals = loadedDict.get('reachedGoals')
         error = loadedDict.get('error')
 
-        cCrossings = 100
-        cCollisions = 50000
-        cInCycle = 50000
+        cCrossings = 10
+        cCollisions = 5000
+        cInCycle = 5000
         cError = 1
         cRangeDriven = -3
-        cReachedGoals = -10000
+        cReachedGoals = -2500
 
         fitValue = cCrossings * crossings + cError * error + cCollisions * collisions + \
                    cInCycle * inCycle + cRangeDriven * rangeDriven + cReachedGoals * reachedGoals
