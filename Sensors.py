@@ -276,11 +276,7 @@ class LaneInvasionDetector(Sensor):
         if self.debug:
             print(f"Vehicle {self.vehicle.vehicleID} crossed line!")
             print(f"Crossed at frame {frameCrossed}, last cross was at {self.lastCross}")
-
-        if self.lastCross + 5 < frameCrossed:
-            self.crossings -= 1
-        else:
-            self.crossings += 1
+        self.crossings += 1
         self.lastCross = frameCrossed
 
 
