@@ -154,14 +154,13 @@ class Vehicle(QObject):
         left, right = self.sensorManager.lines()
         radar = self.sensorManager.radarMeasurement()
         if np.sum(left) == 0 or np.sum(right) == 0:
-            self.print("Lines wasn't detected correctly")
-            neuralSteer = agentSteer
+            neuralSteer = self.steer
         else:
             inputsLines = self.nn.normalizeLinesInputs(left, right)
             inputsRadar = self.nn.normalizeRadarInputs(radar)
             inputA = np.array([agentSteer/0.8])
             inputs = np.concatenate((inputsLines, inputsRadar, inputA), axis=0)
-            outputNeural = self.nn.run(inputs, 0.1)[0][0]
+            outputNeural = self.nn.run(inputs, 0.05)[0][0]
             neuralSteer = self.steer + outputNeural
 
         if neuralSteer > 0.8:
