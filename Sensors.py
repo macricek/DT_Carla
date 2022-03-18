@@ -115,8 +115,6 @@ class SensorManager(QtCore.QObject):
 class Sensor(QtCore.QObject):
     debug: bool = False
 
-    # send signal
-
     def __init__(self, manager, debug):
         super(Sensor, self).__init__()
         self.sensor = None
@@ -196,7 +194,7 @@ class RadarSensor(Sensor):
         left = []
         right = []
         center = []
-        lenka = len(data)
+
         for detect in data:
             azi = int(math.degrees(detect.azimuth))
             alt = math.degrees(detect.altitude)
@@ -209,9 +207,9 @@ class RadarSensor(Sensor):
                 elif azi in self.rightRange:
                     right.append(dist)
 
-        self.left = fmean(left) if len(left) > 0 else 100
-        self.right = fmean(right) if len(right) > 0 else 100
-        self.center = fmean(center) if len(center) > 0 else 100
+        self.left = fmean(left) if len(left) > 0 else self.range
+        self.right = fmean(right) if len(right) > 0 else self.range
+        self.center = fmean(center) if len(center) > 0 else self.range
 
     def returnAverageRanges(self) -> np.ndarray:
         return np.array([self.left, self.center, self.right])
@@ -385,7 +383,7 @@ class LineDetectorCamera(Camera):
 
     def lines(self):
         '''
-        Left and right points in range 0,30m (5 points->numPoints)
+        Left and right points in range "self.at"
         :return:
         '''
         ll, rl = self.lineDetector().extractPolynomials()
