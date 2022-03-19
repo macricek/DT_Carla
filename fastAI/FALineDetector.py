@@ -54,6 +54,17 @@ class FALineDetector:
             x_tensor = torch.from_numpy(image_tensor).to("cuda").unsqueeze(0)
             _, self.left, self.right = F.softmax(self.model.forward(x_tensor), dim=1).cpu().numpy()[0]
 
+        self.left = self.filter(self.left, 5)
+        self.right = self.filter(self.right, 5)
+
+    def filter(self, inputImage, it=1) -> np.ndarray:
+        kernel = np.ones((5, 5), np.uint8)
+        retVal = inputImage
+        dilated = cv2.dilate(retVal, kernel, iterations=it)
+        eroded = cv2.erode(dilated, kernel, iterations=it)
+        retVal = eroded
+        return retVal
+
     def integrateLines(self):
         self.image[self.left > self.treshold, :] = [0, 0, 255]  # blue for left
         self.image[self.right > self.treshold, :] = [255, 0, 0]  # red for right
