@@ -106,10 +106,10 @@ class SensorManager(QtCore.QObject):
 
     def applyTesting(self):
         self.debug = True
-        self.rgbCam.show = True
+        #self.rgbCam.show = True
         # TODO: idk if processor is overhelmed by many cameras or what
-        # for camera in self.cameras:
-        #     camera.show = True
+        for camera in self.cameras:
+            camera.show = True
 
 
 class Sensor(QtCore.QObject):
@@ -383,12 +383,24 @@ class LineDetectorCamera(Camera):
         :return:
         '''
         ll, rl = self.lineDetector().extractPolynomials()
-        self.left = ll(self.at)
-        self.right = rl(self.at)
+        self.left = self.validateLine(ll(self.at))
+        self.right = self.validateLine(rl(self.at))
+
+    @staticmethod
+    def validateLine(line: np.ndarray) -> np.ndarray:
+        variance = np.var(line)
+        maxVal = np.max(np.abs(line))
+
+        if maxVal > 3:
+            return np.zeros(line.shape)
+        if variance > 2:
+            return np.zeros(line.shape)
+
+        return line
 
     def resetLines(self):
-        self.left = np.zeros([1, 5])
-        self.right = np.zeros([1, 5])
+        self.left = np.zeros([1, len(self.at)])
+        self.right = np.zeros([1, len(self.at)])
 
     def create(self):
         super(LineDetectorCamera, self).create()

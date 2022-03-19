@@ -25,7 +25,7 @@ class FALineDetector:
         self.learner = load_learner(self.fastAiModel)
         self.model = torch.load(self.torchModel).to(self.device)
         self.time = time.time()
-        self.treshold = 0.25
+        self.treshold = 0.3
         self.cg = CameraGeometry()
         self.cut_v, self.grid = self.cg.precompute_grid()
         self.init(isMain)
