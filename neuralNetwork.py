@@ -122,4 +122,4 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeRadarInputs(radar: np.ndarray) -> np.ndarray:
-        return 1 - radar / 50
+        return 1 - (radar / 50)
