@@ -35,15 +35,17 @@ class CarlaEnvironment(QObject):
     # PyQt signals
     done = pyqtSignal()
 
-    def __init__(self, main, debug=False):
+    def __init__(self, main, data=-1, debug=False):
         super(CarlaEnvironment, self).__init__()
         self.id = 0
         self.debug = debug
         self.main = main
         self.clock = pygame.time.Clock()
+        self.loadedData = True if data>0 else False
 
         self.client = carla.Client('localhost', 2000)
-        self.config = CarlaConfig(self.client)
+        path = "config.ini" if data == -1 else os.path.join(f"results/{data}/config.ini")
+        self.config = CarlaConfig(self.client, path)
         self.NE = NeuroEvolution(self.config.loadNEData())
         self.faLineDetector = FALineDetector()
         self.MAX_ID = self.NE.popSize
@@ -66,12 +68,12 @@ class CarlaEnvironment(QObject):
         return tickNum
 
     def testRide(self, numRevision):
-        self.trainingMode = False
-        self.spawnVehicleToStart(True, numRevision)
         '''
         Spawn one car and "simulate" ride through waypoints
         :return: Nothing
         '''
+        self.trainingMode = False
+        self.spawnVehicleToStart(True, numRevision)
         print("Starting test ride")
         while True:
             try:
@@ -111,9 +113,10 @@ class CarlaEnvironment(QObject):
 
     def train(self):
         self.trainingMode = True
-        self.config.incrementNE()
+        if not self.loadedData:
+            self.config.incrementNE()
         for i in range(self.NE.numCycle):
-            print(f"Starting EPOCH {i}/{self.NE.numCycle-1}")
+            print(f"Starting EPOCH {i+1}/{self.NE.numCycle}")
             # run one training epoch
             self.trainingRide(i)
             self.NE.perform()

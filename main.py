@@ -11,7 +11,7 @@ class Main(QCoreApplication):
     def __init__(self):
         super(Main, self).__init__([])
         self.time = time.time()
-        self.carlaEnvironment = CarlaEnvironment(self,  False)
+        self.carlaEnvironment = CarlaEnvironment(self)  # , data=103, debug=False)
         self.carlaEnvironment.train()
         # self.carlaEnvironment.testRide(102)
 

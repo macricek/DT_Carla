@@ -52,9 +52,21 @@ class NeuroEvolution(QObject):
         self.fileEvol = self.base + f"{self.rev}/evol.csv"
 
         # initial params
-        self.pop = genetic.genrpop(self.popSize, initSpace)
-        self.minFit = []
+        if os.path.exists(self.fileEvol):
+            minFit = np.loadtxt(self.fileEvol, delimiter=',')
+            self.minFit = list(minFit)
+            self.numCycle += len(self.minFit)
+        else:
+            self.minFit = []
+
         self.fit = np.ones((1, self.popSize)) * 100000
+        self.pop = genetic.genrpop(self.popSize, initSpace)
+
+        if os.path.exists(self.fileBest):
+            best = np.loadtxt(self.fileBest, delimiter=',')
+            self.pop[0, :] = best
+            self.fit[0, 0] = self.minFit[-1]
+
 
     def singleFit(self, vehicle: Vehicle.Vehicle):
         '''

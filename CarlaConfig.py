@@ -5,13 +5,14 @@ import configparser
 import queue
 import os
 
+
 class CarlaConfig:
     client: carla.Client
 
-    def __init__(self, client):
+    def __init__(self, client, path="config.ini"):
         self.client = client
         self.parser = configparser.ConfigParser()
-        self.path = "config.ini"
+        self.path = path
         self.sync = client.get_world().get_settings().synchronous_mode
         self.apply()
 
