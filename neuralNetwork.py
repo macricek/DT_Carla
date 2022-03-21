@@ -90,10 +90,13 @@ class NeuralNetwork:
         :param limit: coef to outputs
         :return: outputs array
         '''
-        assert inputs.shape[0] == self.nInput
+        assert inputs.shape[0] >= self.nInput
+        if inputs.shape[0] > self.nInput:
+            X = inputs[0:self.nInput]
+        else:
+            X = inputs
         W1, W2, W3, BH1, BH2, BO = self.parse()
 
-        X = inputs
         H1 = np.zeros((1, self.nHidden[0]))
         H2 = np.zeros((1, self.nHidden[1]))
         O = np.zeros((1, self.nOutput))
