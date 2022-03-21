@@ -97,7 +97,8 @@ class Vehicle(QObject):
         if tickNum % 10 == 0:
             self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
             self.toGoal.append(self.diffToLocation(self.goal))
-            self.me.apply_control(self.getControl(True))
+            if self.debug:
+                self.me.apply_control(self.getControl(True))
         return True
 
     def agentAction(self):
