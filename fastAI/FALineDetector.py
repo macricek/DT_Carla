@@ -25,7 +25,7 @@ class FALineDetector:
         self.learner = load_learner(self.fastAiModel)
         self.model = torch.load(self.torchModel).to(self.device)
         self.time = time.time()
-        self.treshold = 0.25
+        self.treshold = 0.3
         self.cg = CameraGeometry()
         self.cut_v, self.grid = self.cg.precompute_grid()
         self.init(isMain)
@@ -53,6 +53,17 @@ class FALineDetector:
             image_tensor = self.image.transpose(2, 0, 1).astype('float32') / 255
             x_tensor = torch.from_numpy(image_tensor).to("cuda").unsqueeze(0)
             _, self.left, self.right = F.softmax(self.model.forward(x_tensor), dim=1).cpu().numpy()[0]
+
+        self.left = self.filter(self.left, 5)
+        self.right = self.filter(self.right, 5)
+
+    def filter(self, inputImage, it=1) -> np.ndarray:
+        kernel = np.ones((5, 5), np.uint8)
+        retVal = inputImage
+        dilated = cv2.dilate(retVal, kernel, iterations=it)
+        eroded = cv2.erode(dilated, kernel, iterations=it)
+        retVal = eroded
+        return retVal
 
     def integrateLines(self):
         self.image[self.left > self.treshold, :] = [0, 0, 255]  # blue for left

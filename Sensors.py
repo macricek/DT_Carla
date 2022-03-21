@@ -106,14 +106,14 @@ class SensorManager(QtCore.QObject):
 
     def applyTesting(self):
         self.debug = True
+        #self.rgbCam.show = True
+        # TODO: idk if processor is overhelmed by many cameras or what
         for camera in self.cameras:
             camera.show = True
 
 
 class Sensor(QtCore.QObject):
     debug: bool = False
-
-    # send signal
 
     def __init__(self, manager, debug):
         super(Sensor, self).__init__()
@@ -175,7 +175,7 @@ class RadarSensor(Sensor):
         self.bp = self.blueprints().find('sensor.other.radar')
         self.bp.set_attribute('horizontal_fov', str(90))
         self.bp.set_attribute('vertical_fov', str(25))
-        self.where = carla.Transform(carla.Location(x=1.5))
+        self.where = carla.Transform(carla.Location(x=1.5, z=0.5))
 
         atDeg = [-35, 0, 35]
         mR = 10
@@ -194,21 +194,22 @@ class RadarSensor(Sensor):
         left = []
         right = []
         center = []
+
         for detect in data:
             azi = int(math.degrees(detect.azimuth))
             alt = math.degrees(detect.altitude)
             dist = detect.depth
+            if alt > 0:
+                if azi in self.leftRange:
+                    left.append(dist)
+                elif azi in self.centerRange:
+                    center.append(dist)
+                elif azi in self.rightRange:
+                    right.append(dist)
 
-            if azi in self.leftRange:
-                left.append(dist)
-            elif azi in self.centerRange:
-                center.append(dist)
-            elif azi in self.rightRange:
-                right.append(dist)
-
-        self.left = fmean(left) if len(left) > 0 else 0
-        self.right = fmean(right) if len(right) > 0 else 0
-        self.center = fmean(center) if len(center) > 0 else 0
+        self.left = fmean(left) if len(left) > 0 else self.range
+        self.right = fmean(right) if len(right) > 0 else self.range
+        self.center = fmean(center) if len(center) > 0 else self.range
 
     def returnAverageRanges(self) -> np.ndarray:
         return np.array([self.left, self.center, self.right])
@@ -275,11 +276,7 @@ class LaneInvasionDetector(Sensor):
         if self.debug:
             print(f"Vehicle {self.vehicle.vehicleID} crossed line!")
             print(f"Crossed at frame {frameCrossed}, last cross was at {self.lastCross}")
-
-        if self.lastCross + 5 < frameCrossed:
-            self.crossings -= 1
-        else:
-            self.crossings += 1
+        self.crossings += 1
         self.lastCross = frameCrossed
 
 
@@ -382,16 +379,28 @@ class LineDetectorCamera(Camera):
 
     def lines(self):
         '''
-        Left and right points in range 0,30m (5 points->numPoints)
+        Left and right points in range "self.at"
         :return:
         '''
         ll, rl = self.lineDetector().extractPolynomials()
-        self.left = ll(self.at)
-        self.right = rl(self.at)
+        self.left = self.validateLine(ll(self.at))
+        self.right = self.validateLine(rl(self.at))
+
+    @staticmethod
+    def validateLine(line: np.ndarray) -> np.ndarray:
+        variance = np.var(line)
+        maxVal = np.max(np.abs(line))
+
+        if maxVal > 3:
+            return np.zeros(line.shape)
+        if variance > 2:
+            return np.zeros(line.shape)
+
+        return line
 
     def resetLines(self):
-        self.left = np.zeros([1, 5])
-        self.right = np.zeros([1, 5])
+        self.left = np.zeros([1, len(self.at)])
+        self.right = np.zeros([1, len(self.at)])
 
     def create(self):
         super(LineDetectorCamera, self).create()

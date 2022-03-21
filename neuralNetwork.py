@@ -93,12 +93,10 @@ class NeuralNetwork:
         assert inputs.shape[0] == self.nInput
         W1, W2, W3, BH1, BH2, BO = self.parse()
 
-        X = np.zeros((1, self.nInput))
+        X = inputs
         H1 = np.zeros((1, self.nHidden[0]))
         H2 = np.zeros((1, self.nHidden[1]))
         O = np.zeros((1, self.nOutput))
-
-        X = inputs
 
         tmp = X @ W1 + BH1
         for i in range(0, self.nHidden[0]):
@@ -116,12 +114,12 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeLinesInputs(left: np.ndarray, right: np.ndarray) -> np.ndarray:
-        leftNCoef = np.max(np.abs(left))
-        rightNCoef = np.max(np.abs(right))
-        leftNormalized = left / leftNCoef
-        rightNormalized = right / rightNCoef
-        return np.concatenate((leftNormalized, rightNormalized), axis=0)
+        leftRight = np.concatenate((left, right), axis=0)
+        norm = np.linalg.norm(leftRight)
+        if norm == 0:
+            return leftRight
+        return leftRight / norm
 
     @staticmethod
     def normalizeRadarInputs(radar: np.ndarray) -> np.ndarray:
-        return 1 - radar / 50
+        return 1 - (radar / 50)

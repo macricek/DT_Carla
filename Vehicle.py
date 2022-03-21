@@ -66,6 +66,8 @@ class Vehicle(QObject):
         self.speed = 0
         self.vehicleStopped = 0
         self.steer = 0
+        self.limit = 0.25
+        self.defaultSteerMaxChange = 0.1
         self.lastLocation = self.getLocation()
 
         self.initAgent(spawnLocation.location)
@@ -83,10 +85,11 @@ class Vehicle(QObject):
         if not self.me or self.sensorManager.isCollided() or self.checkGoal():
             print("Collision or Goal")
             return False
-        if self.standing() or self.inCycle():
-            print("Standing/In cycle, penalization!")
-            self.__inCycle += 1
-            return False
+        if not self.debug: #TRAINING MODE
+            if self.standing() or self.inCycle():
+                print("Standing/In cycle, penalization!")
+                self.__inCycle += 1
+                return False
         # there will NN decide
         self.sensorManager.processSensors()
         control = self.getControl()
@@ -94,6 +97,7 @@ class Vehicle(QObject):
         if tickNum % 10 == 0:
             self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
             self.toGoal.append(self.diffToLocation(self.goal))
+            self.me.apply_control(self.getControl(True))
         return True
 
     def agentAction(self):
@@ -147,37 +151,52 @@ class Vehicle(QObject):
         self.__rangeDriven += difference if 10 > difference > -5 else 0
 
     def getControl(self, useDirectlyAgent=False):
+        maxSteerChange = self.dynamicMaxSteeringChange()
         control = self.agentAction()
-
         agentSteer = control.steer
+
+        if useDirectlyAgent:
+            self.steer = control.steer
+            return control
+
         left, right = self.sensorManager.lines()
         radar = self.sensorManager.radarMeasurement()
         if np.sum(left) == 0 or np.sum(right) == 0:
-            self.print("Lines wasn't detected correctly")
-            neuralSteer = agentSteer
+            # Lines is not detected!
+            self.steer = self.limitSteering(self.calcSteer(agentSteer, maxSteerChange))
         else:
+            # Lines is detected!
             inputsLines = self.nn.normalizeLinesInputs(left, right)
             inputsRadar = self.nn.normalizeRadarInputs(radar)
             inputA = np.array([agentSteer/0.8])
             inputs = np.concatenate((inputsLines, inputsRadar, inputA), axis=0)
-            outputNeural = self.nn.run(inputs, 0.1)[0][0]
-            neuralSteer = self.steer + outputNeural
-
-        if neuralSteer > 0.8:
-            self.steer = 0.8
-        elif neuralSteer < -0.8:
-            self.steer = -0.8
-        else:
-            self.steer = neuralSteer
-
-        if useDirectlyAgent:
-            self.steer = control.steer
-        else:
-            control.steer = self.steer
+            outputNeural = self.nn.run(inputs, maxSteerChange)[0][0]
+            self.steer = self.limitSteering(outputNeural)
 
         self.recordEachStep(agentSteer)
-
+        control.steer = self.steer
         return control
+
+    def limitSteering(self, askedChange):
+        actualSteer = self.steer
+        askedSteer = actualSteer + askedChange
+
+        if askedSteer > self.limit:
+            askedSteer = self.limit
+        elif askedSteer < -self.limit:
+            askedSteer = -self.limit
+
+        return askedSteer
+
+    def calcSteer(self, agentSteer, maxChange):
+        direction = 1 if agentSteer > self.steer else -1
+        difference = min(abs(agentSteer - self.steer), maxChange*2)
+        return direction * difference
+
+    def dynamicMaxSteeringChange(self):
+        # Speed will be 0 - 50, so max division will be 5
+        speed = self.getSpeed() / 10
+        return self.defaultSteerMaxChange / speed if speed > 1 else self.defaultSteerMaxChange
 
     def checkGoal(self):
         '''

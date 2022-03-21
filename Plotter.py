@@ -47,7 +47,7 @@ def plotGeneticResults(numRevision):
 
 
 if __name__ == '__main__':
-    plotGeneticResults(7)
+    plotGeneticResults(101)
     plt.show()
 
 
