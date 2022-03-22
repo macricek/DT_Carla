@@ -13,6 +13,8 @@ from collections import deque
 import sys
 from agents.navigation.basic_agent import BasicAgent
 
+from CarlaConfig import InputsEnum
+
 
 # global constants
 MAX_TIME_CAR = 5
@@ -58,6 +60,7 @@ class Vehicle(QObject):
         self.vehicleID = id
         self.environment = environment
         self.path = environment.config.loadPath()
+        self.askedInputs = environment.config.loadAskedInputs()
         self.debug = self.environment.debug
         self.fald = self.environment.faLineDetector
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)

@@ -1,9 +1,27 @@
 import copy
+import enum
 
 import carla
 import configparser
 import queue
 import os
+
+
+def convertStringToBool(string: str):
+    return string.lower() == "true"
+
+
+class InputsEnum(enum.Enum):
+    linedetect = 6
+    radar = 3
+    agent = 1
+    metrics = 2
+
+    @staticmethod
+    def elem(name):
+        for element in InputsEnum:
+            if name == element.name:
+                return element
 
 
 class CarlaConfig:
@@ -46,6 +64,9 @@ class CarlaConfig:
         return dict(self.parser.items(section))
 
     def loadNEData(self) -> dict:
+        listIns, count = self.loadAskedInputs()
+        self.parser.set("NE", "nInput", str(count))
+        self.rewrite(self.path)
         expDict = self.readSection("NE")
         return expDict
 
@@ -68,6 +89,19 @@ class CarlaConfig:
 
         self.parser.set("NE", "rev", str(old + 1))
         self.rewrite(self.path)
+
+    def loadAskedInputs(self) -> (list, int):
+        nnIns = self.readSection("NnInputs")
+        expectedList = []
+        count = 0
+
+        for key, val in nnIns.items():
+            if convertStringToBool(val):
+                inputElement = InputsEnum.elem(key)
+                expectedList.append(inputElement)
+                count += inputElement.value
+
+        return expectedList, count
 
     def turnOffSync(self):
         world = self.client.get_world()
