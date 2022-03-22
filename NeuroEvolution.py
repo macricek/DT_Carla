@@ -37,6 +37,7 @@ class NeuroEvolution(QObject):
 
         # genetic algorithm params
         self.popSize = int(nnConfig.get("popsize"))
+        self.startCycle = 0
         self.numCycle = int(nnConfig.get("numcycles"))
         self.calculateParamsOfGeneticAlgorithm(nnConfig)
         bottom = np.ones((1, self.numParams)) * -3
@@ -56,6 +57,7 @@ class NeuroEvolution(QObject):
             minFit = np.loadtxt(self.fileEvol, delimiter=',')
             self.minFit = list(minFit)
             self.numCycle += len(self.minFit)
+            self.startCycle += len(self.minFit)
         else:
             self.minFit = []
 
