@@ -1,4 +1,6 @@
 import math
+from collections import deque
+
 import numpy as np
 
 
@@ -125,4 +127,28 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeRadarInputs(radar: np.ndarray) -> np.ndarray:
-        return 1 - (radar / 50)
+        coef = 50
+        if np.max(radar) > coef:
+            coef = np.max(radar)
+        return 1 - (radar / coef)
+
+    @staticmethod
+    def normalizeAgent(agent: int) -> np.ndarray:
+        return np.array([agent])
+
+    @staticmethod
+    def normalizeMetrics(metrics: deque, limit) -> np.ndarray:
+        mList = []
+        for m in metrics:
+            if m > limit:
+                mList.append(limit)
+            elif m < -limit:
+                mList.append(-limit)
+            else:
+                mList.append(m)
+
+        return np.asarray(mList) / limit
+
+    @staticmethod
+    def normalizeBinary(binary: list) -> np.ndarray:
+        return np.array([])
