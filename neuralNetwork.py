@@ -4,6 +4,19 @@ from collections import deque
 import numpy as np
 
 
+def loadNNParamsFromConfig(nnConfig):
+    nInputs = int(nnConfig.get("ninput"))
+    nHiddenOne = int(nnConfig.get("nhidden"))
+    nHidden = []
+    hiddenLayers = int(nnConfig.get("nhiddenlayers"))
+    for _ in range(hiddenLayers):
+        nHidden.append(nHiddenOne)
+    nHidden = np.asarray(nHidden)
+    nOutputs = int(nnConfig.get("noutput"))
+
+    return nInputs, nHidden, nOutputs
+
+
 class NeuralNetwork:
     '''
     Basic MLP neural network implementation

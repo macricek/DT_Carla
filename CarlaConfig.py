@@ -42,16 +42,15 @@ class InputsEnum(enum.Enum):
 class CarlaConfig:
     client: carla.Client
 
-    def __init__(self, client, path="config.ini"):
+    def __init__(self, client=None, path="config.ini"):
         self.client = client
         self.parser = configparser.ConfigParser()
         self.path = path
-        self.sync = client.get_world().get_settings().synchronous_mode
-        self.apply()
+        self.parser.read(self.path)
 
     def apply(self):
         ''''APPLY CONFIG SETTINGS TO SIMULATOR'''
-        self.parser.read(self.path)
+        self.sync = self.client.get_world().get_settings().synchronous_mode
         self.client.set_timeout(30)
         weather = self.parser.get("CARLA", "weather")
         map = self.parser.get("CARLA", "map")
@@ -151,10 +150,8 @@ class CarlaConfig:
 
 
 if __name__ == '__main__':
-    client = carla.Client('localhost', 2000)
-    client.set_timeout(10)
-    conf = CarlaConfig(client)
+    conf = CarlaConfig()
     s = conf.readSection("NE")
     print(s)
-    from NeuroEvolution import NeuroEvolution
-    testNe = NeuroEvolution(s)
+    from neuralNetwork import NeuralNetwork as NN
+    nn = NN()

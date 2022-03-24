@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from neuralNetwork import NeuralNetwork as NN, loadNNParamsFromConfig
+from CarlaConfig import CarlaConfig
 
 
 def plotFastAIComparation():
@@ -24,8 +26,10 @@ def plotFastAIComparation():
 def plotGeneticResults(numRevision):
     evolFile = f'results/{numRevision}/evol.csv'
     weightsFile = f'results/{numRevision}/best.csv'
+    configFile = f'results/{numRevision}/config.ini'
     evol = np.loadtxt(evolFile, delimiter=',')
     weights = np.loadtxt(weightsFile, delimiter=',')
+    config = CarlaConfig(path=configFile)
 
     plt.figure(0)
     plt.plot(evol)
@@ -35,8 +39,12 @@ def plotGeneticResults(numRevision):
     plt.savefig(f'results/{numRevision}/genetic.png')
 
     plt.figure(1)
-    biases = weights[210:-1]
-    weights = weights[0:210]
+    nInputs, nHidden, nOutputs = loadNNParamsFromConfig(config.loadNEData())
+    nn = NN(nInputs, nHidden, nOutputs)
+    numW, numB = nn.getNumOfNeededElements()
+
+    biases = weights[numW:numB+numW]
+    weights = weights[0:numW]
     plt.plot(weights, '*', label='Váhy')
     plt.plot(biases, 'o', label='Biasy')
     plt.legend()

@@ -5,7 +5,7 @@ import time
 
 import Vehicle
 import genetic
-from neuralNetwork import NeuralNetwork as NN
+from neuralNetwork import NeuralNetwork as NN, loadNNParamsFromConfig
 from PyQt5.QtCore import QObject
 import matplotlib.pyplot as plt
 
@@ -23,14 +23,7 @@ class NeuroEvolution(QObject):
         super(NeuroEvolution, self).__init__()
 
         # neural network params
-        nInputs = int(nnConfig.get("ninput"))
-        nHiddenOne = int(nnConfig.get("nhidden"))
-        nHidden = []
-        hiddenLayers = int(nnConfig.get("nhiddenlayers"))
-        for _ in range(hiddenLayers):
-            nHidden.append(nHiddenOne)
-        nHidden = np.asarray(nHidden)
-        nOutputs = int(nnConfig.get("noutput"))
+        nInputs, nHidden, nOutputs = loadNNParamsFromConfig(nnConfig)
         self.nn = NN(nInputs, nHidden, nOutputs)
         self.w, self.b = self.nn.getNumOfNeededElements()
         self.numParams = self.w + self.b
