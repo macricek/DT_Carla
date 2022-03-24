@@ -73,6 +73,7 @@ class Vehicle(QObject):
         self.steer = 0
         self.limit = 0.25
         self.defaultSteerMaxChange = 0.1
+        self.numMeasure = 10
         self.lastLocation = self.getLocation()
 
         self.initAgent(spawnLocation.location)
@@ -101,7 +102,7 @@ class Vehicle(QObject):
         self.sensorManager.processSensors()
         control = self.getControl()
         self.me.apply_control(control)
-        if tickNum % 10 == 0:
+        if tickNum % self.numMeasure == 0:
             self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
             self.toGoal.append(self.diffToLocation(self.goal))
             self.metrics.append(control)
@@ -159,23 +160,23 @@ class Vehicle(QObject):
         difference = distLast - distNow
         self.__rangeDriven += difference if 10 > difference > -5 else 0
 
-    def getControl(self, useDirectlyAgent=False):
+    def getControl(self, testingRide=False):
         maxSteerChange = self.dynamicMaxSteeringChange()
         control = self.agentAction()
         agentSteer = control.steer
 
-        if useDirectlyAgent:
+        if testingRide:
             self.steer = control.steer
             return control
 
-        left, right = self.sensorManager.lines()
         radar = self.sensorManager.radarMeasurement()
+        left, right = self.sensorManager.lines()
         if np.sum(left) == 0 or np.sum(right) == 0:
             # Lines is not detected!
             self.steer = self.limitSteering(self.calcSteer(agentSteer, maxSteerChange))
         else:
             # Lines is detected!
-            inputs = self.processInputs(agentSteer)
+            inputs = self.processInputs(left, right, radar, agentSteer)
             outputNeural = self.nn.run(inputs, maxSteerChange)[0][0]
             self.steer = self.limitSteering(outputNeural)
 
@@ -194,9 +195,7 @@ class Vehicle(QObject):
 
         return askedSteer
 
-    def processInputs(self, agentSteer):
-        left, right = self.sensorManager.lines()
-        radar = self.sensorManager.radarMeasurement()
+    def processInputs(self, left, right, radar, agentSteer):
         inputs = np.array([])
 
         for asked in self.askedInputs:
@@ -274,6 +273,7 @@ class Vehicle(QObject):
     def applyConfig(self, testing):
         self.debug = testing
         if testing:
+            self.numMeasure = 8
             self.sensorManager.applyTesting()
 
     def getLocation(self):
