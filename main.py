@@ -20,7 +20,7 @@ class Main(QCoreApplication):
     def __init__(self):
         super(Main, self).__init__([])
         self.time = time.time()
-        data = Results.lines
+        data = Results.lines_measure
 
         self.carlaEnvironment = CarlaEnvironment(self, data=data.value, debug=False)
         if data == Results.none:

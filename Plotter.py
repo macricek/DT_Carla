@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from neuralNetwork import NeuralNetwork as NN, loadNNParamsFromConfig
 from CarlaConfig import CarlaConfig
+from main import Results
 
 
 def plotFastAIComparation():
@@ -55,7 +56,7 @@ def plotGeneticResults(numRevision):
 
 
 if __name__ == '__main__':
-    plotGeneticResults(61)
+    plotGeneticResults(Results.lines_measure)
     plt.show()
 
 
