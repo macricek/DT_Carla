@@ -4,6 +4,8 @@ import datetime
 import carla
 import time
 import random
+
+import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal
 
 import neuralNetwork
@@ -12,6 +14,8 @@ from queue import Queue
 from collections import deque
 import sys
 from agents.navigation.basic_agent import BasicAgent
+
+from CarlaConfig import InputsEnum
 
 
 # global constants
@@ -58,6 +62,7 @@ class Vehicle(QObject):
         self.vehicleID = id
         self.environment = environment
         self.path = environment.config.loadPath()
+        self.askedInputs = environment.config.loadAskedInputs()[0]
         self.debug = self.environment.debug
         self.fald = self.environment.faLineDetector
         self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
@@ -75,7 +80,9 @@ class Vehicle(QObject):
         currentDt = str(datetime.datetime.now())
         print("Vehicle {id} ready at {dt}".format(id=self.vehicleID, dt=currentDt))
         self.startTime = time.time()
+
         self.toGoal = deque(maxlen=10)
+        self.metrics = deque(maxlen=2)
 
     def run(self, tickNum):
         '''
@@ -97,6 +104,7 @@ class Vehicle(QObject):
         if tickNum % 10 == 0:
             self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
             self.toGoal.append(self.diffToLocation(self.goal))
+            self.metrics.append(control)
             if self.debug:
                 self.me.apply_control(self.getControl(True))
         return True
@@ -167,10 +175,7 @@ class Vehicle(QObject):
             self.steer = self.limitSteering(self.calcSteer(agentSteer, maxSteerChange))
         else:
             # Lines is detected!
-            inputsLines = self.nn.normalizeLinesInputs(left, right)
-            inputsRadar = self.nn.normalizeRadarInputs(radar)
-            inputA = np.array([agentSteer/0.8])
-            inputs = np.concatenate((inputsLines, inputsRadar, inputA), axis=0)
+            inputs = self.processInputs(agentSteer)
             outputNeural = self.nn.run(inputs, maxSteerChange)[0][0]
             self.steer = self.limitSteering(outputNeural)
 
@@ -188,6 +193,25 @@ class Vehicle(QObject):
             askedSteer = -self.limit
 
         return askedSteer
+
+    def processInputs(self, agentSteer):
+        left, right = self.sensorManager.lines()
+        radar = self.sensorManager.radarMeasurement()
+        inputs = np.array([])
+
+        for asked in self.askedInputs:
+            if asked == InputsEnum.linedetect:
+                inputs = np.append(inputs, self.nn.normalizeLinesInputs(left, right))
+            elif asked == InputsEnum.radar:
+                inputs = np.append(inputs, self.nn.normalizeRadarInputs(radar))
+            elif asked == InputsEnum.agent:
+                inputs = np.append(inputs, self.nn.normalizeAgent(agentSteer))
+            elif asked == InputsEnum.metrics:
+                inputs = np.append(inputs, self.nn.normalizeMetrics())
+            elif asked == InputsEnum.binaryKnowledge:
+                pass
+
+        return inputs
 
     def calcSteer(self, agentSteer, maxChange):
         direction = 1 if agentSteer > self.steer else -1

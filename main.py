@@ -11,9 +11,9 @@ class Main(QCoreApplication):
     def __init__(self):
         super(Main, self).__init__([])
         self.time = time.time()
-        self.carlaEnvironment = CarlaEnvironment(self)  # , data=103, debug=False)
+        self.carlaEnvironment = CarlaEnvironment(self)  #, data=61, debug=False)
         self.carlaEnvironment.train()
-        # self.carlaEnvironment.testRide(102)
+        # self.carlaEnvironment.testRide(61)
 
     def terminate(self):
         print("Terminating MAIN!")

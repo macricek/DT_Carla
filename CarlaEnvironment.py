@@ -115,7 +115,7 @@ class CarlaEnvironment(QObject):
         self.trainingMode = True
         if not self.loadedData:
             self.config.incrementNE()
-        for i in range(self.NE.numCycle):
+        for i in range(self.NE.startCycle, self.NE.numCycle):
             print(f"Starting EPOCH {i+1}/{self.NE.numCycle}")
             # run one training epoch
             self.trainingRide(i)

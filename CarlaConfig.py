@@ -1,9 +1,42 @@
 import copy
+import enum
 
 import carla
 import configparser
 import queue
 import os
+
+
+def convertStringToBool(string: str):
+    return string.lower() == "true"
+
+
+class InputsEnum(enum.Enum):
+    '''
+    Inputs for neural network. Value will store number of inputs provided by each
+    Inputs:
+    Linedetect - 6 inputs, 3 points for left and right line detected by FastAI Detector
+    Radar - 3 inputs, average of all valid scans in left (-45°, -25°), center (-10°, 10°) and right (25°, 45°) side
+    Agent - 1 input, "suggested" throttle
+    Metrics - 2 inputs, current throttle and throttle 10 steps back
+    BinaryKnowledge - 4 inputs, that will simply suggest where Car should turn [-1 for left, 1 for right, 0 for none]:
+                    1: Based on lines detected (left line is closer than right -> turn right: 1)
+                    2: Based on actual speed towards goal
+                    3: Based on difference between agent steering and actual steering
+                    4: Which radar measurement has the shortest range [-1 for left, 0 for center, 1 for right]
+    '''
+
+    linedetect = 6
+    radar = 3
+    agent = 1
+    metrics = 2
+    binaryKnowledge = 4
+
+    @staticmethod
+    def elem(name):
+        for element in InputsEnum:
+            if name == element.name:
+                return element
 
 
 class CarlaConfig:
@@ -46,6 +79,9 @@ class CarlaConfig:
         return dict(self.parser.items(section))
 
     def loadNEData(self) -> dict:
+        listIns, count = self.loadAskedInputs()
+        self.parser.set("NE", "nInput", str(count))
+        self.rewrite(self.path)
         expDict = self.readSection("NE")
         return expDict
 
@@ -68,6 +104,19 @@ class CarlaConfig:
 
         self.parser.set("NE", "rev", str(old + 1))
         self.rewrite(self.path)
+
+    def loadAskedInputs(self) -> (list, int):
+        nnIns = self.readSection("NnInputs")
+        expectedList = []
+        count = 0
+
+        for key, val in nnIns.items():
+            if convertStringToBool(val):
+                inputElement = InputsEnum.elem(key)
+                expectedList.append(inputElement)
+                count += inputElement.value
+
+        return expectedList, count
 
     def turnOffSync(self):
         world = self.client.get_world()
