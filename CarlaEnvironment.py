@@ -46,6 +46,7 @@ class CarlaEnvironment(QObject):
         self.client = carla.Client('localhost', 2000)
         path = "config.ini" if data == -1 else os.path.join(f"results/{data}/config.ini")
         self.config = CarlaConfig(self.client, path)
+        self.config.apply()
         self.NE = NeuroEvolution(self.config.loadNEData())
         self.faLineDetector = FALineDetector()
         self.MAX_ID = self.NE.popSize

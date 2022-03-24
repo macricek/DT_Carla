@@ -1,3 +1,5 @@
+import enum
+
 from CarlaEnvironment import CarlaEnvironment
 import sys
 from PyQt5.QtCore import QObject, QThread, QCoreApplication
@@ -7,13 +9,24 @@ from fastAI.fastAI import get_image_array_from_fn, label_func
 from fastAI.CameraGeometry import CameraGeometry
 
 
+class Results(enum.IntEnum):
+    none = -1
+    lines = 61
+    lines_radar_agent = 103
+    lines_measure = 201
+
+
 class Main(QCoreApplication):
     def __init__(self):
         super(Main, self).__init__([])
         self.time = time.time()
-        self.carlaEnvironment = CarlaEnvironment(self)  #, data=61, debug=False)
-        self.carlaEnvironment.train()
-        # self.carlaEnvironment.testRide(61)
+        data = Results.lines_measure
+
+        self.carlaEnvironment = CarlaEnvironment(self, data=data.value, debug=False)
+        if data == Results.none:
+            self.carlaEnvironment.train()
+        else:
+            self.carlaEnvironment.testRide(data.value)
 
     def terminate(self):
         print("Terminating MAIN!")
