@@ -139,13 +139,18 @@ class NeuralNetwork:
     @staticmethod
     def normalizeMetrics(metrics: deque, limit) -> np.ndarray:
         mList = []
+        if len(metrics) < 2:
+            return np.array([0, 0])
+
         for m in metrics:
-            if m > limit:
+            #TODO: for now, just steering
+            steer = m.steer
+            if steer > limit:
                 mList.append(limit)
-            elif m < -limit:
+            elif steer < -limit:
                 mList.append(-limit)
             else:
-                mList.append(m)
+                mList.append(steer)
 
         return np.asarray(mList) / limit
 

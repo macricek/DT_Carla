@@ -207,7 +207,7 @@ class Vehicle(QObject):
             elif asked == InputsEnum.agent:
                 inputs = np.append(inputs, self.nn.normalizeAgent(agentSteer))
             elif asked == InputsEnum.metrics:
-                inputs = np.append(inputs, self.nn.normalizeMetrics())
+                inputs = np.append(inputs, self.nn.normalizeMetrics(self.metrics, self.limit))
             elif asked == InputsEnum.binaryKnowledge:
                 pass
 
