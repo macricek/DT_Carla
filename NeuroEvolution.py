@@ -118,7 +118,7 @@ class NeuroEvolution(QObject):
         WorkPop2 = genetic.seltourn(self.pop, self.fit, self.nWork2)
         NPop = genetic.genrpop(self.nGenerate, self.space)
 
-        SortPop = genetic.around(WorkPop1, 0, 1.25, self.space)
+        SortPop = genetic.around(WorkPop1, 0, 0.75, self.space)
         WorkPop = genetic.mutx(WorkPop2, 0.15, self.space)
         BestPop = genetic.muta(BestPop, 0.01, self.amp, self.space)
         self.pop = np.concatenate((Best, SortPop, BestPop, WorkPop, NPop), axis=0)

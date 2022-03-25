@@ -156,7 +156,6 @@ class NeuralNetwork:
             return np.array([0, 0])
 
         for m in metrics:
-            #TODO: for now, just steering
             steer = m.steer
             if steer > limit:
                 mList.append(limit)
@@ -169,4 +168,4 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeBinary(binary: list) -> np.ndarray:
-        return np.array([])
+        return np.asarray(binary)
