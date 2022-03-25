@@ -207,8 +207,8 @@ class Vehicle(QObject):
                 inputs = np.append(inputs, self.nn.normalizeAgent(agentSteer))
             elif asked == InputsEnum.metrics:
                 inputs = np.append(inputs, self.nn.normalizeMetrics(self.metrics, self.limit))
-            elif asked == InputsEnum.binaryKnowledge:
-                pass
+            elif asked == InputsEnum.binaryknowledge:
+                inputs = np.append(inputs, self.nn.normalizeBinary(self.getBinaryKnowledge(left, right, agentSteer, radar)))
 
         return inputs
 
@@ -295,6 +295,49 @@ class Vehicle(QObject):
     def errInLocation(l1: carla.Location, l2: carla.Location):
         dist = l1.distance(l2)
         return dist
+
+    def getBinaryKnowledge(self, left, right, agentSteer, radar) -> list:
+        '''
+        Process all needed datas and calc binary knowledge. More information in CarlaConfig.py
+        :return: list(len=4) of binary knowledges (-1,0, or 1)
+        '''
+        left1 = np.abs(left[0])
+        right1 = np.abs(right[0])
+        '1: Based on lines detected (left line is closer than right -> turn right: 1)'
+        if left1 > right1:
+            one = 1
+        elif left1 < right1:
+            one = -1
+        else:
+            one = 0
+        '2: Based on difference between agent steering and actual steering'
+        if self.steer < agentSteer:
+            two = -1
+        elif self.steer > agentSteer:
+            two = 1
+        else:
+            two = 0
+        '3: Which radar measurement has the shortest range [-1 for left, 0 for center, 1 for right]'
+        minRadar = np.min(radar)
+        if minRadar == radar[0]:
+            three = -1
+        elif minRadar == radar[1]:
+            three = 0
+        else:
+            three = 1
+        '4: Based on actual speed towards goal'
+        x = abs(self.velocity.x)
+        y = abs(self.velocity.y)
+        diffX = abs(self.goal.x - self.location.x)
+        diffY = abs(self.goal.y - self.location.y)
+        # We can expect that direction will be ok, so just use abs values
+        if diffX > diffY and y > x:
+            four = 1
+        elif diffY > diffX and x > y:
+            four = -1
+        else:
+            four = 0
+        return [one, two, three, four]
 
     def getSpeed(self):
         '''

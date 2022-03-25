@@ -21,16 +21,16 @@ class InputsEnum(enum.Enum):
     Metrics - 2 inputs, current throttle and throttle 10 steps back
     BinaryKnowledge - 4 inputs, that will simply suggest where Car should turn [-1 for left, 1 for right, 0 for none]:
                     1: Based on lines detected (left line is closer than right -> turn right: 1)
-                    2: Based on actual speed towards goal
-                    3: Based on difference between agent steering and actual steering
-                    4: Which radar measurement has the shortest range [-1 for left, 0 for center, 1 for right]
+                    2: Based on difference between agent steering and actual steering
+                    3: Which radar measurement has the shortest range [-1 for left, 0 for center, 1 for right]
+                    4: Based on actual speed towards goal
     '''
 
     linedetect = 6
     radar = 3
     agent = 1
     metrics = 2
-    binaryKnowledge = 4
+    binaryknowledge = 4
 
     @staticmethod
     def elem(name):
