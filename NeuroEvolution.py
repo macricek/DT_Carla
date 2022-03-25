@@ -62,7 +62,6 @@ class NeuroEvolution(QObject):
             self.pop[0, :] = best
             self.fit[0, 0] = self.minFit[-1]
 
-
     def singleFit(self, vehicle: Vehicle.Vehicle):
         '''
         Calculate fit value of single vehicle solution

@@ -57,7 +57,8 @@ class FALineDetector:
         self.left = self.filter(self.left, 5)
         self.right = self.filter(self.right, 5)
 
-    def filter(self, inputImage, it=1) -> np.ndarray:
+    @staticmethod
+    def filter(inputImage, it=1) -> np.ndarray:
         kernel = np.ones((5, 5), np.uint8)
         retVal = inputImage
         dilated = cv2.dilate(retVal, kernel, iterations=it)
@@ -133,4 +134,3 @@ if __name__ == '__main__':
         plt.legend()
         plt.axis("equal")
         plt.show()
-        #time.sleep(0.5)
