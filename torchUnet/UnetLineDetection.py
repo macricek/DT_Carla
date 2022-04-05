@@ -89,7 +89,7 @@ class LaneDetectionDataset(Dataset):
 
 
 class CNNLineDetector:
-    def __init__(self, from_scratch=True, path='unet_model.pth', dataPath=data_path):
+    def __init__(self, from_scratch=True, path='torchUnet/unet_model.pth', dataPath=data_path):
         self.val_epoch = None
         self.train_epoch = None
         self.optimizer = None
@@ -120,6 +120,7 @@ class CNNLineDetector:
             self.model,
             loss=self.loss,
             optimizer=self.optimizer,
+            metrics=[],
             device=device,
             verbose=True
         )
@@ -127,6 +128,7 @@ class CNNLineDetector:
         self.val_epoch = smp.utils.train.ValidEpoch(
             self.model,
             loss=self.loss,
+            metrics=[],
             device=device,
             verbose=True
         )
@@ -134,8 +136,8 @@ class CNNLineDetector:
     def train(self, num_epochs, save=True):
         for i in range(1, num_epochs+1):
             print("Running epoch {now}/{max}".format(now=i, max=num_epochs))
-            logTraining = self.train_epoch.testRide()
-            logValidation = self.val_epoch.testRide()
+            logTraining = self.train_epoch.run(self.trainloader)
+            logValidation = self.val_epoch.run(self.valloader)
             print("TRAINING STATUS")
             print(logTraining, logValidation)
         if save:
@@ -154,7 +156,7 @@ if __name__ == '__main__':
     train_dataset = LaneDetectionDataset(data_path, val=False, transforms=testtransform)
     val_dataset = LaneDetectionDataset(data_path, val=True, transforms=testtransform)
 
-    best = True
+    best = False
     if best:
         model = CNNLineDetector(from_scratch=not best)
     else:

@@ -1,16 +1,17 @@
-import LineDetection
+import torch
 from CarlaEnvironment import CarlaEnvironment
 import numpy as np
 import cv2
-from LineDetection import CNNLineDetector, transformImage
-import torch
+import sys
+sys.path.insert(0, "torchUnet")
+from torchUnet.UnetLineDetection import *
 import os
 import matplotlib.pyplot as plt
 import random
 from fastai.vision.all import *
-import sys
+
 sys.path.insert(0, "fastAI")
-from fastAI.fastAI import get_image_array_from_fn, label_func
+from fastAI.fastAI import *
 import time
 import signal
 import sys
@@ -28,7 +29,7 @@ def signal_handler(sig, frame):
 
 def lineDetectorPredict(im, cnnD):
     shapeIm = np.shape(im)
-    transformedImage, _ = transformImage(im, LineDetection.testtransform, np.empty(shapeIm))
+    transformedImage, _ = transformImage(im, testtransform, np.empty(shapeIm))
     mask = cnnD.predict(transformedImage.squeeze())
     im1 = mask.cpu()
     vis = im1.numpy()
@@ -42,11 +43,11 @@ def lineDetectorPredict(im, cnnD):
 
 
 def compare(numImages):
-    cnnD = CNNLineDetector(False, dataPath=LineDetection.data_path)
+    cnnD = CNNLineDetector(False, dataPath=data_path)
     learn = load_learner(pathToLearner)
     fig, axs = plt.subplots(numImages, 4, figsize=(10, 5 * numImages))
     for i in range(numImages):
-        rand = int(random.random() * sizeOf)
+        rand = int(random.random() * 100)
         #Image
         img = cv2.imread(str(get_image_files(x_valid_dir)[rand]))
         imgT = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -88,4 +89,4 @@ def pyplot():
 
 
 if __name__ == '__main__':
-    pyplot()
+    compare(7)

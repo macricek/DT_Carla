@@ -16,18 +16,17 @@ def get_image_array_from_fn(fn):
 def label_func(fn):
     return str(fn).replace(".png", "_label.png").replace("train", "train_label").replace("val\\", "val_label\\")
 
+DATA_DIR = "../Kaggle/"
+
+x_train_dir = os.path.join(DATA_DIR, 'train')
+y_train_dir = os.path.join(DATA_DIR, 'train_label')
+
+x_valid_dir = os.path.join(DATA_DIR, 'val')
+y_valid_dir = os.path.join(DATA_DIR, 'val_label')
 
 if __name__ == '__main__':
     torch.cuda.device(0)
     print(torch.cuda.get_device_name(0))
-
-    DATA_DIR = "../Kaggle/"
-
-    x_train_dir = os.path.join(DATA_DIR, 'train')
-    y_train_dir = os.path.join(DATA_DIR, 'train_label')
-
-    x_valid_dir = os.path.join(DATA_DIR, 'val')
-    y_valid_dir = os.path.join(DATA_DIR, 'val_label')
 
     my_get_image_files = partial(get_image_files, folders=["train", "val"])
     codes = np.array(['back', 'left', 'right'], dtype=str)
