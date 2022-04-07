@@ -46,6 +46,8 @@ def compare(numImages):
     cnnD = CNNLineDetector(False, dataPath=data_path)
     learn = load_learner(pathToLearner)
     fig, axs = plt.subplots(numImages, 4, figsize=(10, 5 * numImages))
+    unet = []
+    fi = []
     for i in range(numImages):
         rand = int(random.random() * 100)
         #Image
@@ -58,9 +60,13 @@ def compare(numImages):
         normal_array = mask / norm
         mask = normal_array * 255
         #predict with CNNLineDetector
+        t1 = time.time()
         maskLineDetector = lineDetectorPredict(img, cnnD)
+        unet.append(time.time() - t1)
         #predict with fastAI
+        t2 = time.time()
         maskFastAI = np.array(learn.predict(imgT)[0])
+        fi.append(time.time() - t2)
         #AXS
         axs[i, 0].imshow(imgT)
         axs[i, 1].imshow(mask)
@@ -75,10 +81,22 @@ def compare(numImages):
         axs[i, 1].axis('off')
         axs[i, 2].axis('off')
         axs[i, 3].axis('off')
+    unet = np.asarray(unet[1:10])
+    fi = np.asarray(fi[1:10])
 
     plt.show()
     fig.savefig('figs\\Compare.png')
+    return unet, fi
 
+
+def times(unet, fi):
+    plt.plot(unet, '*', label='Unet++')
+    plt.plot(fi, 'o', label='FastAI')
+    plt.title("Porovnanie rýchlosti segmentácie")
+    plt.xlabel("Poradové číslo segmentácie")
+    plt.ylabel("Čas segmentácie [s]")
+    plt.legend()
+    plt.show()
 
 def pyplot():
     arr = []
@@ -89,4 +107,5 @@ def pyplot():
 
 
 if __name__ == '__main__':
-    compare(7)
+    unet, fi = compare(11)
+    times(unet, fi)

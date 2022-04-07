@@ -15,8 +15,8 @@ def plotFastAIComparation():
     lossFastAI = 1 - yFastAI
 
     plot1 = plt.figure(1)
-    plt.plot(x, yRes, label='ResNet34')
-    plt.plot(x, yFastAI, label='FastAI')
+    plt.plot(x, yRes, label='Unet++')
+    plt.plot(x, yFastAI, label='MobileNetV3Small')
     plt.legend()
     plt.title("Segmentation DiceMulti by epoch")
     plt.xlabel("Epochs")
@@ -56,7 +56,8 @@ def plotGeneticResults(numRevision):
 
 
 if __name__ == '__main__':
-    plotGeneticResults(Results.lines)
+    #plotGeneticResults(Results.lines)
+    plotFastAIComparation()
     plt.show()
 
 
