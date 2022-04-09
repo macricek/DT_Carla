@@ -8,7 +8,7 @@ import numpy as np
 from fastAI import *
 from fastai.vision.all import *
 from fastAI.CameraGeometry import CameraGeometry
-#from CameraGeometry import CameraGeometry
+# from CameraGeometry import CameraGeometry
 
 
 class FALineDetector:
@@ -54,16 +54,16 @@ class FALineDetector:
             x_tensor = torch.from_numpy(image_tensor).to("cuda").unsqueeze(0)
             _, self.left, self.right = F.softmax(self.model.forward(x_tensor), dim=1).cpu().numpy()[0]
 
-        self.left = self.filter(self.left, 5)
-        self.right = self.filter(self.right, 5)
+        self.left = self.filter(self.left, 1)
+        self.right = self.filter(self.right, 1)
 
     @staticmethod
     def filter(inputImage, it=1) -> np.ndarray:
         kernel = np.ones((5, 5), np.uint8)
         retVal = inputImage
-        dilated = cv2.dilate(retVal, kernel, iterations=it)
-        eroded = cv2.erode(dilated, kernel, iterations=it)
-        retVal = eroded
+        eroded = cv2.erode(retVal, kernel, iterations=it)
+        dilated = cv2.dilate(eroded, kernel, iterations=it)
+        retVal = dilated
         return retVal
 
     def integrateLines(self):
@@ -116,7 +116,10 @@ class FALineDetector:
 if __name__ == '__main__':
     fald = FALineDetector(aug=True, isMain=True)
     d = os.path.join("../Kaggle/val/")
-    for file in os.listdir("../Kaggle/val"):
+    arr = [3, 7, 16]
+    for i, file in enumerate(os.listdir("../Kaggle/val")):
+        if i not in arr:
+            continue
         fileP = os.path.join(d + file)
         print(fileP)
         print(fald.sinceLast())

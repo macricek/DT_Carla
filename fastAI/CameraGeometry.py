@@ -1,5 +1,5 @@
 '''
-AUTHOR: Thomas Fermi: Algorithms for Automated Driving
+AUTHOR: M. Theers: Algorithms for Automated Driving
 '''
 
 import numpy as np
