@@ -15,14 +15,14 @@ class Results(enum.IntEnum):
     lines_radar_agent = 103
     lines_measure = 201
     binary = 300
-    all = 301
+    withoutNavigation = 301
 
 
 class Main(QCoreApplication):
     def __init__(self):
         super(Main, self).__init__([])
         self.time = time.time()
-        data = Results.all
+        data = Results.none
 
         self.carlaEnvironment = CarlaEnvironment(self, data=data.value, debug=False)
         if data == Results.none:

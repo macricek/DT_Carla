@@ -121,8 +121,10 @@ class Vehicle(QObject):
             self.toGoal.clear()
         control = self.agent.run_step()
         control.manual_gear_shift = False
+        waypoints = self.agent.get_waypoints()[0]
+        waypoint = waypoints.transform.location if waypoints else None
         self.print(f"Control: {control}")
-        return control
+        return control, waypoint
 
     def initAgent(self, spawnLoc):
         '''
@@ -162,7 +164,7 @@ class Vehicle(QObject):
 
     def getControl(self, testingRide=False):
         maxSteerChange = self.dynamicMaxSteeringChange()
-        control = self.agentAction()
+        control, waypoint = self.agentAction()
         agentSteer = control.steer
 
         if testingRide:
@@ -176,7 +178,7 @@ class Vehicle(QObject):
             self.steer = self.limitSteering(self.calcSteer(agentSteer, maxSteerChange))
         else:
             # Lines is detected!
-            inputs = self.processInputs(left, right, radar, agentSteer)
+            inputs = self.processInputs(left, right, radar, agentSteer, waypoint)
             outputNeural = self.nn.run(inputs, maxSteerChange)[0][0]
             self.steer = self.limitSteering(outputNeural)
 
@@ -195,7 +197,7 @@ class Vehicle(QObject):
 
         return askedSteer
 
-    def processInputs(self, left, right, radar, agentSteer):
+    def processInputs(self, left, right, radar, agentSteer, waypoint):
         inputs = np.array([])
 
         for asked in self.askedInputs:
@@ -209,6 +211,8 @@ class Vehicle(QObject):
                 inputs = np.append(inputs, self.nn.normalizeMetrics(self.metrics, self.limit))
             elif asked == InputsEnum.binaryknowledge:
                 inputs = np.append(inputs, self.nn.normalizeBinary(self.getBinaryKnowledge(left, right, agentSteer, radar)))
+            elif asked == InputsEnum.navigation:
+                inputs = np.append(inputs, self.nn.normalizeNavigation(self.location, waypoint))
 
         return inputs
 

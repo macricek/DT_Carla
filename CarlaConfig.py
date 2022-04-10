@@ -17,13 +17,14 @@ class InputsEnum(enum.Enum):
     Inputs:
     Linedetect - 6 inputs, 3 points for left and right line detected by FastAI Detector
     Radar - 3 inputs, average of all valid scans in left (-45°, -25°), center (-10°, 10°) and right (25°, 45°) side
-    Agent - 1 input, "suggested" throttle
-    Metrics - 2 inputs, current throttle and throttle 10 steps back
+    Agent - 1 input, "suggested" steering
+    Metrics - 2 inputs, current steering and steering 10 steps back
     BinaryKnowledge - 4 inputs, that will simply suggest where Car should turn [-1 for left, 1 for right, 0 for none]:
                     1: Based on lines detected (left line is closer than right -> turn right: 1)
                     2: Based on difference between agent steering and actual steering
                     3: Which radar measurement has the shortest range [-1 for left, 0 for center, 1 for right]
                     4: Based on actual speed towards goal
+    Navigation - 2 inputs, errors toward waypoint in x, y
     '''
 
     linedetect = 6
@@ -31,12 +32,19 @@ class InputsEnum(enum.Enum):
     agent = 1
     metrics = 2
     binaryknowledge = 4
+    navigation = 0
 
     @staticmethod
     def elem(name):
         for element in InputsEnum:
             if name == element.name:
                 return element
+
+    def getValue(self):
+        if self == InputsEnum.navigation:
+            return 2
+        else:
+            return self.value
 
 
 class CarlaConfig:
@@ -113,7 +121,7 @@ class CarlaConfig:
             if convertStringToBool(val):
                 inputElement = InputsEnum.elem(key)
                 expectedList.append(inputElement)
-                count += inputElement.value
+                count += inputElement.getValue()
 
         return expectedList, count
 

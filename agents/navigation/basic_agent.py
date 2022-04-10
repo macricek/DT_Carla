@@ -101,6 +101,9 @@ class BasicAgent(object):
         """Get method for protected member local planner"""
         return self._local_planner
 
+    def get_waypoints(self):
+        return self._local_planner.get_incoming_waypoint_and_direction(steps=1)
+
     def get_global_planner(self):
         """Get method for protected member local planner"""
         return self._global_planner
