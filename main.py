@@ -20,16 +20,12 @@ class Results(enum.IntEnum):
 
 
 class Main(QCoreApplication):
-    def __init__(self):
+    def __init__(self, data):
         super(Main, self).__init__([])
         self.time = time.time()
-        data = Results.none
+        self.data = data
 
         self.carlaEnvironment = CarlaEnvironment(self, data=data.value, debug=False)
-        if data == Results.none:
-            self.carlaEnvironment.train()
-        else:
-            self.carlaEnvironment.replayTrainingRide(data.value)
 
     def terminate(self):
         print("Terminating MAIN!")
@@ -38,11 +34,32 @@ class Main(QCoreApplication):
         finally:
             sys.exit(0)
 
+    def runTraining(self):
+        self.carlaEnvironment.train()
+
+    def showBestResult(self):
+        if self.data == Results.none:
+            print("Need to pick some results")
+            return
+        self.carlaEnvironment.replayTrainingRide(data.value)
+
+    def runTest(self):
+        if self.data == Results.none:
+            print("Need to pick some results")
+            return
+        self.carlaEnvironment.testRide(data.value)
+
     def signal_handler(self, sig, frame):
         print('You pressed Ctrl+C!')
         sys.exit(0)
 
 
 if __name__ == '__main__':
-    mainApp = Main()
-    sys.exit(mainApp.exec())
+    data = Results.navigation
+
+    mainApp = Main(data)
+    # mainApp.runTraining()
+    mainApp.showBestResult()
+    # mainApp.runTest()
+    code = mainApp.exec()
+    sys.exit(code)

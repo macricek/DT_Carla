@@ -61,7 +61,7 @@ class Vehicle(QObject):
         super(Vehicle, self).__init__()
         self.vehicleID = id
         self.environment = environment
-        self.path = environment.config.loadPath()
+        self.path = environment.path()
         self.askedInputs = environment.config.loadAskedInputs()[0]
         self.debug = self.environment.debug
         self.fald = self.environment.faLineDetector
@@ -106,8 +106,8 @@ class Vehicle(QObject):
             self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
             self.toGoal.append(self.diffToLocation(self.goal))
             self.metrics.append(control)
-            if self.debug:
-                self.me.apply_control(self.getControl(True))
+            # if self.debug:
+                # self.me.apply_control(self.getControl(True))
         return True
 
     def agentAction(self):

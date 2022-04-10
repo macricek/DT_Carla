@@ -144,10 +144,14 @@ class CarlaConfig:
             print("Sync mode turned on!")
 
     @staticmethod
-    def loadPath() -> queue.Queue:
+    def loadPath(which=0) -> queue.Queue:
         path = queue.Queue()
-        x = [-8.6, -121.8, -363.4, -463.6, -490]
-        y = [107.5, 395.2, 406, 333.6, 174]
+        if which == 0:
+            x = [-8.6, -121.8, -363.4, -463.6, -490]
+            y = [107.5, 395.2, 406, 333.6, 174]
+        elif which == 1:
+            x = [98.6, 272.5, 409.1, 410.7, 211.2]
+            y = [34.7, 37.5, -37.2, -228.7, -392.1]
         for i in range(len(x)):
             loc = carla.Location()
             loc.x = x[i]
