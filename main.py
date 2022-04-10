@@ -11,6 +11,7 @@ from fastAI.CameraGeometry import CameraGeometry
 
 class Results(enum.IntEnum):
     none = -1
+    navigation = 2
     lines = 61
     lines_radar_agent = 103
     lines_measure = 201
@@ -28,7 +29,7 @@ class Main(QCoreApplication):
         if data == Results.none:
             self.carlaEnvironment.train()
         else:
-            self.carlaEnvironment.testRide(data.value)
+            self.carlaEnvironment.replayTrainingRide(data.value)
 
     def terminate(self):
         print("Terminating MAIN!")
