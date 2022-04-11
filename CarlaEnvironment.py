@@ -119,7 +119,10 @@ class CarlaEnvironment(QObject):
                 listV = self.runStep(tickNum)
                 if len(listV) > 0:
                     for veh in listV:
-                        self.NE.singleFit(veh)
+                        if self.trainingMode:
+                            self.NE.singleFit(veh)
+                        else:
+                            self.storeVehicleResults(veh)
                         print(f"Vehicle {veh.vehicleID} done!")
                         self.deleteVehicle(veh)
                     return True
@@ -166,6 +169,21 @@ class CarlaEnvironment(QObject):
             if not vehicle.run(tickNum):
                 endedVehicles.append(vehicle)
         return endedVehicles
+
+    def storeVehicleResults(self, vehicle: Vehicle):
+        '''
+        We can expect that vehicle will have 4 lists
+        :param vehicle:
+        :return:
+        '''
+        print("Storing results")
+        pos, ll, rl, op = vehicle.returnVehicleResults()
+        numberOfPositions = len(pos)
+        x = np.zeros((4, numberOfPositions))
+        y = np.zeros((4, numberOfPositions))
+        for idx in range(numberOfPositions):
+            x[0, idx] = pos[idx].x
+            y[0, idx] = pos[idx].y
 
     def deleteVehicle(self, vehicle):
         for v in self.vehicles:

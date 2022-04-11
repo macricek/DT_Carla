@@ -85,6 +85,11 @@ class Vehicle(QObject):
         self.toGoal = deque(maxlen=10)
         self.metrics = deque(maxlen=2)
 
+        self.__positionHistory = []
+        self.__leftLinePlanner = []
+        self.__rightLinePlanner = []
+        self.__optimalPath = []
+
     def run(self, tickNum):
         '''
         Do a tick response for vehicle object
@@ -98,6 +103,7 @@ class Vehicle(QObject):
                 print("Standing/In cycle, penalization!")
                 self.__inCycle += 1
                 return False
+
         # there will NN decide
         self.sensorManager.processSensors()
         control = self.getControl()
@@ -106,8 +112,10 @@ class Vehicle(QObject):
             self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
             self.toGoal.append(self.diffToLocation(self.goal))
             self.metrics.append(control)
-            # if self.debug:
-                # self.me.apply_control(self.getControl(True))
+            if self.debug:
+                self.__positionHistory.append(self.location)
+                #self.agent.get_waypoints()
+                #Here we need to locate somehow lines + path
         return True
 
     def agentAction(self):
@@ -215,6 +223,9 @@ class Vehicle(QObject):
                 inputs = np.append(inputs, self.nn.normalizeNavigation(self.location, waypoint))
 
         return inputs
+
+    def returnVehicleResults(self):
+        return self.__positionHistory, self.__leftLinePlanner, self.__rightLinePlanner, self.__optimalPath
 
     def calcSteer(self, agentSteer, maxChange):
         direction = 1 if agentSteer > self.steer else -1
