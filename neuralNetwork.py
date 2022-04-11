@@ -17,6 +17,15 @@ def loadNNParamsFromConfig(nnConfig):
     return nInputs, nHidden, nOutputs
 
 
+def check(num, limit):
+    if num > limit:
+        return limit
+    elif num < -limit:
+        return -limit
+    else:
+        return num
+
+
 class NeuralNetwork:
     '''
     Basic MLP neural network implementation
@@ -156,16 +165,24 @@ class NeuralNetwork:
             return np.array([0, 0])
 
         for m in metrics:
-            steer = m.steer
-            if steer > limit:
-                mList.append(limit)
-            elif steer < -limit:
-                mList.append(-limit)
-            else:
-                mList.append(steer)
+            mList.append(check(m.steer, limit))
 
         return np.asarray(mList) / limit
 
     @staticmethod
     def normalizeBinary(binary: list) -> np.ndarray:
         return np.asarray(binary)
+
+    @staticmethod
+    def normalizeNavigation(currentLocation, waypoint) -> np.ndarray:
+        '''
+        normalizing into {-1,1}. Expecting max will be 2 metres away.
+        '''
+
+        if not waypoint:
+            return np.asarray([0, 0])
+
+        xErr = (currentLocation.x - waypoint.x) / 2
+        yErr = (currentLocation.y - waypoint.y) / 2
+
+        return np.asarray([check(xErr, 1), check(yErr, 1)])

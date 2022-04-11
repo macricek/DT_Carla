@@ -42,6 +42,7 @@ class CarlaEnvironment(QObject):
         self.main = main
         self.clock = pygame.time.Clock()
         self.loadedData = True if data>0 else False
+        self.whichPath = 0
 
         self.client = carla.Client('localhost', 2000)
         path = "config.ini" if data == -1 else os.path.join(f"results/{data}/config.ini")
@@ -68,23 +69,31 @@ class CarlaEnvironment(QObject):
         tickNum = self.world.tick()
         return tickNum
 
-    def testRide(self, numRevision):
+    def replayTrainingRide(self, numRevision):
         '''
         Spawn one car and "simulate" ride through waypoints
         :return: Nothing
         '''
         self.trainingMode = False
-        self.spawnVehicleToStart(True, numRevision)
-        print("Starting test ride")
-        while True:
-            try:
-                tickNum = self.tick()
-                if len(self.runStep(tickNum)) > 0:
-                    self.main.terminate()
-                    break
-            except Exception as e:
-                print(e)
-                self.main.terminate()
+        spawnPoints = self.map.get_spawn_points()
+        start = spawnPoints[99]
+        self.whichPath = 0
+        self.spawnVehicle(True, start, numRevision)
+        print("Starting replay of training ride")
+        if self.loop():
+            self.main.terminate()
+
+    def testRide(self, numRevision):
+        self.trainingMode = False
+        spawnPoints = self.map.get_spawn_points()
+        start = spawnPoints[334]
+        self.whichPath = 1
+        self.spawnVehicle(True, start, numRevision)
+        if self.loop():
+            self.main.terminate()
+
+    def path(self):
+        return self.config.loadPath(self.whichPath)
 
     def trainingRide(self, epoch):
         '''
@@ -97,20 +106,27 @@ class CarlaEnvironment(QObject):
                 # do not run best solutions again!
                 continue
             self.id = i
-            self.spawnVehicleToStart(False)
-            while True:
-                try:
-                    tickNum = self.tick()
-                    listV = self.runStep(tickNum)
-                    if len(listV) > 0:
-                        for veh in listV:
-                            self.NE.singleFit(veh)
-                            print(f"Vehicle {veh.vehicleID} done!")
-                            self.deleteVehicle(veh)
-                        break
-                except Exception as e:
-                    print(e)
-                    self.main.terminate()
+            spawnPoints = self.map.get_spawn_points()
+            start = spawnPoints[99]
+            self.whichPath = 0
+            self.spawnVehicle(False, start)
+            self.loop()
+
+    def loop(self):
+        while True:
+            try:
+                tickNum = self.tick()
+                listV = self.runStep(tickNum)
+                if len(listV) > 0:
+                    for veh in listV:
+                        self.NE.singleFit(veh)
+                        print(f"Vehicle {veh.vehicleID} done!")
+                        self.deleteVehicle(veh)
+                    return True
+            except Exception as e:
+                print(e)
+                self.main.terminate()
+                return False
 
     def train(self):
         self.trainingMode = True
@@ -124,13 +140,12 @@ class CarlaEnvironment(QObject):
             self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
         self.main.terminate()
 
-    def spawnVehicleToStart(self, testRide, numRevision=0):
+    def spawnVehicle(self, testRide, start, numRevision=0):
         '''
-        Spawn vehicle to starting spot (spawnPoint[99]) and create it.
+        Spawn vehicle to starting spot (start) and create it.
         :return: Nothing
         '''
-        spawnPoints = self.map.get_spawn_points()
-        start = spawnPoints[99]
+
         if not testRide:
             neuralNetwork = self.NE.getNeuralNetwork(self.id)
         else:
