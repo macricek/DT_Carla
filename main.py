@@ -12,6 +12,7 @@ from fastAI.CameraGeometry import CameraGeometry
 class Results(enum.IntEnum):
     none = -1
     navigation = 2
+    linesNav = 22
     lines = 61
     lines_radar_agent = 103
     lines_measure = 201
