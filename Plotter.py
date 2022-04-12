@@ -32,14 +32,14 @@ def plotGeneticResults(numRevision):
     weights = np.loadtxt(weightsFile, delimiter=',')
     config = CarlaConfig(path=configFile)
 
-    plt.figure(0)
+    plt.figure()
     plt.plot(evol)
     plt.title("Priebeh evolúcie fitness funkcie")
     plt.xlabel("Cykly")
     plt.ylabel("Hodnota fitness funkcie")
     plt.savefig(f'results/{numRevision}/genetic.png')
 
-    plt.figure(1)
+    plt.figure()
     nInputs, nHidden, nOutputs = loadNNParamsFromConfig(config.loadNEData())
     nn = NN(nInputs, nHidden, nOutputs)
     numW, numB = nn.getNumOfNeededElements()
@@ -55,9 +55,35 @@ def plotGeneticResults(numRevision):
     plt.savefig(f'results/{numRevision}/visWB.png')
 
 
+def plotPath(numRevision):
+    X = f'results/{numRevision}/X.csv'
+    Y = f'results/{numRevision}/Y.csv'
+    xNp = np.loadtxt(X, delimiter=',')
+    yNp = np.loadtxt(Y, delimiter=',')
+    ran = xNp.shape[0]
+
+    plt.figure()
+    style = ['k', 'r--', 'b--', 'g--']
+    labels = ['Real path', 'LeftLine', 'RightLane', 'Optimal path']
+    plt.title("Recorded path of vehicle")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    for i in range(ran):
+        plt.plot(xNp[i, :], yNp[i, :], style[i], label=labels[i])
+    plt.legend()
+    plt.savefig(f'results/{numRevision}/path')
+
+
+def full(numRevision):
+    plotGeneticResults(numRevision)
+    plotPath(numRevision)
+
+
 if __name__ == '__main__':
-    #plotGeneticResults(Results.lines)
-    plotFastAIComparation()
+    res = Results.navigation
+    full(res)
+    # plotGeneticResults(res)
+    # plotPath(res)
     plt.show()
 
 

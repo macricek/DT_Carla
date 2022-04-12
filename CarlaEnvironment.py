@@ -119,7 +119,10 @@ class CarlaEnvironment(QObject):
                 listV = self.runStep(tickNum)
                 if len(listV) > 0:
                     for veh in listV:
-                        self.NE.singleFit(veh)
+                        if self.trainingMode:
+                            self.NE.singleFit(veh)
+                        else:
+                            self.storeVehicleResults(veh)
                         print(f"Vehicle {veh.vehicleID} done!")
                         self.deleteVehicle(veh)
                     return True
@@ -166,6 +169,37 @@ class CarlaEnvironment(QObject):
             if not vehicle.run(tickNum):
                 endedVehicles.append(vehicle)
         return endedVehicles
+
+    def storeVehicleResults(self, vehicle: Vehicle):
+        '''
+        We can expect that vehicle will have 4 lists
+        :param vehicle:
+        :return:
+        '''
+        print("Storing results")
+        pos, ll, rl, op = vehicle.returnVehicleResults()
+        numberOfPositions = len(pos)
+
+        x = np.zeros((4, numberOfPositions))
+        y = np.zeros((4, numberOfPositions))
+        for idx in range(numberOfPositions):
+            x[0, idx] = pos[idx].x
+            y[0, idx] = pos[idx].y
+
+            x[1, idx] = ll[idx].x
+            y[1, idx] = ll[idx].y
+
+            x[2, idx] = rl[idx].x
+            y[2, idx] = rl[idx].y
+
+            x[3, idx] = op[idx].x
+            y[3, idx] = op[idx].y
+
+        rev = self.config.parser.get("NE", "rev")
+        pathX = os.path.join(f"results/{rev}/X.csv")
+        pathY = os.path.join(f"results/{rev}/Y.csv")
+        np.savetxt(pathX, x, delimiter=',')
+        np.savetxt(pathY, y, delimiter=',')
 
     def deleteVehicle(self, vehicle):
         for v in self.vehicles:
