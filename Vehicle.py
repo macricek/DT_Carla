@@ -112,10 +112,7 @@ class Vehicle(QObject):
             self.print(f"TN {tickNum}: {self.diffToLocation(self.goal)}")
             self.toGoal.append(self.diffToLocation(self.goal))
             self.metrics.append(control)
-            if self.debug:
-                self.__positionHistory.append(self.location)
-                #self.agent.get_waypoints()
-                #Here we need to locate somehow lines + path
+            self.storeCurrentData()
         return True
 
     def agentAction(self):
@@ -223,6 +220,15 @@ class Vehicle(QObject):
                 inputs = np.append(inputs, self.nn.normalizeNavigation(self.location, waypoint))
 
         return inputs
+
+    def storeCurrentData(self):
+        if self.debug:
+            waypoints = self.agent.get_waypoints()[0]
+            if waypoints:
+                self.__positionHistory.append(self.location)
+                self.__leftLinePlanner.append(waypoints.get_left_lane().transform.location)
+                self.__rightLinePlanner.append(waypoints.get_right_lane().transform.location)
+                self.__optimalPath.append(waypoints.transform.location)
 
     def returnVehicleResults(self):
         return self.__positionHistory, self.__leftLinePlanner, self.__rightLinePlanner, self.__optimalPath
