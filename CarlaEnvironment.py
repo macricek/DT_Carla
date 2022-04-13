@@ -196,8 +196,8 @@ class CarlaEnvironment(QObject):
             y[3, idx] = op[idx].y
 
         rev = self.config.parser.get("NE", "rev")
-        pathX = os.path.join(f"results/{rev}/X.csv")
-        pathY = os.path.join(f"results/{rev}/Y.csv")
+        pathX = os.path.join(f"results/{rev}/X{self.whichPath}.csv")
+        pathY = os.path.join(f"results/{rev}/Y{self.whichPath}.csv")
         np.savetxt(pathX, x, delimiter=',')
         np.savetxt(pathY, y, delimiter=',')
 

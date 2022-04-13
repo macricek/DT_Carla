@@ -56,11 +56,11 @@ class Main(QCoreApplication):
 
 
 if __name__ == '__main__':
-    data = Results.withoutNavigation
+    data = Results.lines_radar_agent
 
     mainApp = Main(data)
     # mainApp.runTraining()
-    mainApp.showBestResult()
-    # mainApp.runTest()
+    # mainApp.showBestResult()
+    mainApp.runTest()
     code = mainApp.exec()
     sys.exit(code)

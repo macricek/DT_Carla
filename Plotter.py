@@ -56,17 +56,18 @@ def plotGeneticResults(numRevision):
 
 
 def plotPath(numRevision, type=0):
+    X = f'results/{numRevision}/X{type}.csv'
+    Y = f'results/{numRevision}/Y{type}.csv'
+    xNp = np.loadtxt(X, delimiter=',')
+    yNp = np.loadtxt(Y, delimiter=',')
+    xStart = np.array([xNp[0, 0]])
+    yStart = np.array([yNp[0, 0]])
     if type == 0:
-        X = f'results/{numRevision}/X.csv'
-        Y = f'results/{numRevision}/Y.csv'
-        xNp = np.loadtxt(X, delimiter=',')
-        yNp = np.loadtxt(Y, delimiter=',')
-        xStart = np.array([xNp[0, 0]])
-        yStart = np.array([yNp[0, 0]])
         xEnd = np.array([-490])
         yEnd = np.array([174])
     else:
-        return
+        xEnd = np.array([211.2])
+        yEnd = np.array([-392.1])
     ran = xNp.shape[0]
 
     plt.figure()
@@ -80,16 +81,17 @@ def plotPath(numRevision, type=0):
     for i in range(ran):
         plt.plot(xNp[i, :], yNp[i, :], style[i], label=labels[i])
     plt.legend()
-    plt.savefig(f'results/{numRevision}/path')
+    plt.savefig(f'results/{numRevision}/path{type}.png')
 
 
 def full(numRevision):
     plotGeneticResults(numRevision)
-    plotPath(numRevision)
+    plotPath(numRevision, 0)
+    plotPath(numRevision, 1)
 
 
 if __name__ == '__main__':
-    res = Results.binary
+    res = Results.navigation
     full(res)
     # plotGeneticResults(res)
     # plotPath(res)

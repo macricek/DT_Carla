@@ -178,7 +178,8 @@ class Vehicle(QObject):
 
         radar = self.sensorManager.radarMeasurement()
         left, right = self.sensorManager.lines()
-        if np.sum(left) == 0 or np.sum(right) == 0:
+        isThere = InputsEnum.linedetect in self.askedInputs
+        if isThere and (np.sum(left) == 0 or np.sum(right) == 0):
             # Lines is not detected!
             self.steer = self.limitSteering(self.calcSteer(agentSteer, maxSteerChange))
         else:
@@ -322,14 +323,17 @@ class Vehicle(QObject):
         Process all needed datas and calc binary knowledge. More information in CarlaConfig.py
         :return: list(len=4) of binary knowledges (-1,0, or 1)
         '''
-        left1 = np.abs(left[0])
-        right1 = np.abs(right[0])
-        '1: Based on lines detected (left line is closer than right -> turn right: 1)'
-        if left1 > right1:
-            one = 1
-        elif left1 < right1:
-            one = -1
-        else:
+        try:
+            left1 = np.abs(left[0])
+            right1 = np.abs(right[0])
+            '1: Based on lines detected (left line is closer than right -> turn right: 1)'
+            if left1 > right1:
+                one = 1
+            elif left1 < right1:
+                one = -1
+            else:
+                one = 0
+        except:
             one = 0
         '2: Based on difference between agent steering and actual steering'
         if self.steer < agentSteer:
