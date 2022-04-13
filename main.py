@@ -12,6 +12,7 @@ from fastAI.CameraGeometry import CameraGeometry
 class Results(enum.IntEnum):
     none = -1
     navigation = 2
+    withoutLines = 5
     linesNav = 22
     lines = 61
     lines_radar_agent = 103
@@ -56,7 +57,7 @@ class Main(QCoreApplication):
 
 
 if __name__ == '__main__':
-    data = Results.navigation
+    data = Results.withoutLines
 
     mainApp = Main(data)
     # mainApp.runTraining()
