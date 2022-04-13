@@ -55,11 +55,18 @@ def plotGeneticResults(numRevision):
     plt.savefig(f'results/{numRevision}/visWB.png')
 
 
-def plotPath(numRevision):
-    X = f'results/{numRevision}/X.csv'
-    Y = f'results/{numRevision}/Y.csv'
-    xNp = np.loadtxt(X, delimiter=',')
-    yNp = np.loadtxt(Y, delimiter=',')
+def plotPath(numRevision, type=0):
+    if type == 0:
+        X = f'results/{numRevision}/X.csv'
+        Y = f'results/{numRevision}/Y.csv'
+        xNp = np.loadtxt(X, delimiter=',')
+        yNp = np.loadtxt(Y, delimiter=',')
+        xStart = np.array([xNp[0, 0]])
+        yStart = np.array([yNp[0, 0]])
+        xEnd = np.array([-490])
+        yEnd = np.array([174])
+    else:
+        return
     ran = xNp.shape[0]
 
     plt.figure()
@@ -68,6 +75,8 @@ def plotPath(numRevision):
     plt.title("Recorded path of vehicle")
     plt.xlabel("x")
     plt.ylabel("y")
+    plt.plot(xStart, yStart, 'c*', label="Start")
+    plt.plot(xEnd, yEnd, 'y*', label="End")
     for i in range(ran):
         plt.plot(xNp[i, :], yNp[i, :], style[i], label=labels[i])
     plt.legend()
@@ -80,7 +89,7 @@ def full(numRevision):
 
 
 if __name__ == '__main__':
-    res = Results.navigation
+    res = Results.binary
     full(res)
     # plotGeneticResults(res)
     # plotPath(res)

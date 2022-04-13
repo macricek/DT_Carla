@@ -16,7 +16,6 @@ class Results(enum.IntEnum):
     linesNav = 22
     lines = 61
     lines_radar_agent = 103
-    lines_measure = 201
     binary = 300
     withoutNavigation = 301
 
@@ -57,7 +56,7 @@ class Main(QCoreApplication):
 
 
 if __name__ == '__main__':
-    data = Results.withoutLines
+    data = Results.withoutNavigation
 
     mainApp = Main(data)
     # mainApp.runTraining()
