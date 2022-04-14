@@ -91,7 +91,7 @@ def full(numRevision):
 
 
 if __name__ == '__main__':
-    res = Results.navigation
+    res = Results.withoutLines
     full(res)
     # plotGeneticResults(res)
     # plotPath(res)

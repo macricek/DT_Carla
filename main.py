@@ -13,6 +13,7 @@ class Results(enum.IntEnum):
     none = -1
     navigation = 2
     withoutLines = 5
+    withoutLines2 = 6
     linesNav = 22
     lines = 61
     lines_radar_agent = 103
@@ -56,11 +57,11 @@ class Main(QCoreApplication):
 
 
 if __name__ == '__main__':
-    data = Results.lines_radar_agent
+    data = Results.withoutLines
 
     mainApp = Main(data)
     # mainApp.runTraining()
-    # mainApp.showBestResult()
-    mainApp.runTest()
+    mainApp.showBestResult()
+    # mainApp.runTest()
     code = mainApp.exec()
     sys.exit(code)
