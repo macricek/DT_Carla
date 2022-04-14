@@ -34,9 +34,9 @@ def plotGeneticResults(numRevision):
 
     plt.figure()
     plt.plot(evol)
-    plt.title("Priebeh evolúcie fitness funkcie")
-    plt.xlabel("Cykly")
-    plt.ylabel("Hodnota fitness funkcie")
+    plt.title(f"Evolution of fitness function {numRevision.title()}")
+    plt.xlabel("Cycles")
+    plt.ylabel("Fitness function value")
     plt.savefig(f'results/{numRevision}/genetic.png')
 
     plt.figure()
@@ -46,12 +46,12 @@ def plotGeneticResults(numRevision):
 
     biases = weights[numW:numB+numW]
     weights = weights[0:numW]
-    plt.plot(weights, '*', label='Váhy')
-    plt.plot(biases, 'o', label='Biasy')
+    plt.plot(weights, '*', label='Weights')
+    plt.plot(biases, 'o', label='Biases')
     plt.legend()
-    plt.title("Vizualizácia váh")
-    plt.xlabel("Poradové číslo váhy/biasu")
-    plt.ylabel("Hodnota váhy/biasu")
+    plt.title(f"Visualisation of weights/biases {numRevision.title()}")
+    plt.xlabel("Number of weight/bias")
+    plt.ylabel("Value of weight/bias")
     plt.savefig(f'results/{numRevision}/visWB.png')
 
 
@@ -73,7 +73,7 @@ def plotPath(numRevision, type=0):
     plt.figure()
     style = ['k', 'r--', 'b--', 'g--']
     labels = ['Real path', 'LeftLine', 'RightLane', 'Optimal path']
-    plt.title("Recorded path of vehicle")
+    plt.title(f"Recorded path of vehicle [{numRevision.title()}]")
     plt.xlabel("x")
     plt.ylabel("y")
     plt.plot(xStart, yStart, 'c*', label="Start")
@@ -90,11 +90,18 @@ def full(numRevision):
     plotPath(numRevision, 1)
 
 
+def actionForAllResults():
+    for mem in Results:
+        if mem.value < 0:
+            continue
+        full(mem)
+
+
 if __name__ == '__main__':
-    res = Results.withoutLines
-    full(res)
+    # res = Results.withoutLines
+    # full(res)
     # plotGeneticResults(res)
     # plotPath(res)
-    plt.show()
+    # plt.show()
 
-
+    actionForAllResults()

@@ -11,14 +11,20 @@ from fastAI.CameraGeometry import CameraGeometry
 
 class Results(enum.IntEnum):
     none = -1
-    navigation = 2
-    withoutLines = 5
-    withoutLines2 = 6
-    linesNav = 22
-    lines = 61
-    lines_radar_agent = 103
-    binary = 300
-    withoutNavigation = 301
+    all_possible_inputs = 2
+    Metrics_Binary_Navigation = 5
+    Metrics_Binary_Navigation_2 = 6
+    Lines_Metrics_Binary_Navigation = 22
+    Only_Lines = 61
+    Lines_Radar_Agent = 103
+    Metrics_Binary = 300
+    All_Except_Navigation = 301
+
+    def __str__(self):
+        return self.value
+
+    def title(self):
+        return self.name.replace("_", " ")
 
 
 class Main(QCoreApplication):
