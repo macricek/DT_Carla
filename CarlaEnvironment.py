@@ -244,10 +244,11 @@ class CarlaEnvironment(QObject):
     def terminate(self):
         self.deleteAll()
 
-        self.traffic = False
-        for _ in range(3):
-            self.environment.tick()
-            time.sleep(0.5)
+        if self.traffic:
+            self.traffic = False
+            for _ in range(3):
+                self.tick()
+                time.sleep(0.5)
 
         print("Turning off sync mode")
         self.trafficManager.set_synchronous_mode(False)
