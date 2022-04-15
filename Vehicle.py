@@ -185,15 +185,10 @@ class Vehicle(QObject):
 
         radar = self.sensorManager.radarMeasurement()
         left, right = self.sensorManager.lines()
-        isThere = InputsEnum.linedetect in self.askedInputs
-        if isThere and (np.sum(left) == 0 or np.sum(right) == 0):
-            # Lines is not detected!
-            self.steer = self.limitSteering(self.calcSteer(agentSteer, maxSteerChange))
-        else:
-            # Lines is detected!
-            inputs = self.processInputs(left, right, radar, agentSteer, waypoint)
-            outputNeural = self.nn.run(inputs, maxSteerChange)[0][0]
-            self.steer = self.limitSteering(outputNeural)
+
+        inputs = self.processInputs(left, right, radar, agentSteer, waypoint)
+        outputNeural = self.nn.run(inputs, maxSteerChange)[0][0]
+        self.steer = self.limitSteering(outputNeural)
 
         self.recordEachStep(agentSteer)
         control.steer = self.steer
