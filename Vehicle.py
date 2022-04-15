@@ -65,7 +65,14 @@ class Vehicle(QObject):
         self.askedInputs = environment.config.loadAskedInputs()[0]
         self.debug = self.environment.debug
         self.fald = self.environment.faLineDetector
-        self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
+
+        self.me = None
+        while not self.me:
+            self.me = self.environment.world.try_spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
+            if not self.me:
+                for _ in range(10):
+                    self.environment.tick()
+
         self.nn = neuralNetwork
 
         self.speed = 0
