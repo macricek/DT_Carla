@@ -310,19 +310,12 @@ def generateTraffic(callback):
         print('spawned %d vehicles and %d walkers, press Ctrl+C to exit.' % (len(vehicles_list), len(walkers_list)))
 
         # Example of how to use Traffic Manager parameters
-        traffic_manager.global_percentage_speed_difference(70.0)
+        traffic_manager.global_percentage_speed_difference(50.0)
 
         while callback():
-            time.sleep(0.1)
+            time.sleep(1)
 
     finally:
-
-        if not args.asynch and synchronous_master:
-            settings = world.get_settings()
-            settings.synchronous_mode = False
-            settings.no_rendering_mode = False
-            settings.fixed_delta_seconds = None
-            world.apply_settings(settings)
 
         print('\ndestroying %d vehicles' % len(vehicles_list))
         client.apply_batch([carla.command.DestroyActor(x) for x in vehicles_list])

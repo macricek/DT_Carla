@@ -55,44 +55,40 @@ class Main(QCoreApplication):
     def exec(self):
         # DEFAULT scenarios
         if self.mode == Mode.trainingDefault:
-            self.defaultTraining()
+            self.training(False)
         elif self.mode == Mode.showTrainingDefault:
-            self.showTrainingDefaultResult()
+            self.showTrainingResult(False)
         elif self.mode == Mode.runTestDefault:
-            self.runTestDefault()
+            self.runTest(False)
         # ADVANCED scenarios
         elif self.mode == Mode.trainingAdvanced:
-            pass
+            self.training(True)
         elif self.mode == Mode.showTrainingAdvanced:
-            pass
+            self.showTrainingResult(True)
         elif self.mode == Mode.runTestAdvanced:
-            pass
+            self.runTest(True)
 
         return super().exec()
 
-    def defaultTraining(self):
-        self.carlaEnvironment.train()
+    def training(self, advanced):
+        self.carlaEnvironment.train(advanced)
 
-    def showTrainingDefaultResult(self):
+    def showTrainingResult(self, advanced):
         if self.data == Results.none:
             print("Need to pick some results")
             return
-        self.carlaEnvironment.replayTrainingRide(data.value)
+        self.carlaEnvironment.replayTrainingRide(data.value, advanced)
 
-    def runTestDefault(self):
+    def runTest(self, advanced):
         if self.data == Results.none:
             print("Need to pick some results")
             return
-        self.carlaEnvironment.testRide(data.value)
-
-    def signal_handler(self, sig, frame):
-        print('You pressed Ctrl+C!')
-        sys.exit(0)
+        self.carlaEnvironment.testRide(data.value, advanced)
 
 
 if __name__ == '__main__':
-    data = Results.Only_Lines
-    mode = Mode.showTrainingDefault
+    data = Results.Lines_Metrics_Binary_Navigation
+    mode = Mode.showTrainingAdvanced
     mainApp = Main(data, mode)
     code = mainApp.exec()
     sys.exit(code)
