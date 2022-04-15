@@ -27,11 +27,21 @@ class Results(enum.IntEnum):
         return self.name.replace("_", " ")
 
 
+class Mode(enum.IntEnum):
+    trainingDefault = 0
+    showTrainingDefault = 1
+    runTestDefault = 2
+    trainingAdvanced = 3
+    showTrainingAdvanced = 4
+    runTestAdvanced = 5
+
+
 class Main(QCoreApplication):
-    def __init__(self, data):
+    def __init__(self, data, mode):
         super(Main, self).__init__([])
         self.time = time.time()
         self.data = data
+        self.mode = mode
 
         self.carlaEnvironment = CarlaEnvironment(self, data=data.value, debug=False)
 
@@ -42,16 +52,34 @@ class Main(QCoreApplication):
         finally:
             sys.exit(0)
 
-    def runTraining(self):
+    def exec(self):
+        # DEFAULT scenarios
+        if self.mode == Mode.trainingDefault:
+            self.defaultTraining()
+        elif self.mode == Mode.showTrainingDefault:
+            self.showTrainingDefaultResult()
+        elif self.mode == Mode.runTestDefault:
+            self.runTestDefault()
+        # ADVANCED scenarios
+        elif self.mode == Mode.trainingAdvanced:
+            pass
+        elif self.mode == Mode.showTrainingAdvanced:
+            pass
+        elif self.mode == Mode.runTestAdvanced:
+            pass
+
+        return super().exec()
+
+    def defaultTraining(self):
         self.carlaEnvironment.train()
 
-    def showBestResult(self):
+    def showTrainingDefaultResult(self):
         if self.data == Results.none:
             print("Need to pick some results")
             return
         self.carlaEnvironment.replayTrainingRide(data.value)
 
-    def runTest(self):
+    def runTestDefault(self):
         if self.data == Results.none:
             print("Need to pick some results")
             return
@@ -63,11 +91,8 @@ class Main(QCoreApplication):
 
 
 if __name__ == '__main__':
-    data = Results.withoutLines
-
-    mainApp = Main(data)
-    # mainApp.runTraining()
-    mainApp.showBestResult()
-    # mainApp.runTest()
+    data = Results.Only_Lines
+    mode = Mode.showTrainingDefault
+    mainApp = Main(data, mode)
     code = mainApp.exec()
     sys.exit(code)
