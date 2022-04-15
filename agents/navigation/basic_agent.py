@@ -41,8 +41,8 @@ class BasicAgent(object):
 
         # Base parameters
         self._ignore_traffic_lights = False
-        self._ignore_stop_signs = False
-        self._ignore_vehicles = False
+        self._ignore_stop_signs = True
+        self._ignore_vehicles = True
         self._target_speed = target_speed
         self._sampling_resolution = 2.0
         self._base_tlight_threshold = 5.0  # meters
