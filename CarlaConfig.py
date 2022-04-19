@@ -69,8 +69,7 @@ class CarlaConfig:
 
         if map not in curMap:
             world = self.client.load_world(map)
-        elif len(world.get_actors()) > 0:
-            print("Re-load world!")
+        else:
             world = self.client.reload_world()
         world.set_weather(eval(weather))
 

@@ -65,13 +65,20 @@ class Vehicle(QObject):
         self.askedInputs = environment.config.loadAskedInputs()[0]
         self.debug = self.environment.debug
         self.fald = self.environment.faLineDetector
-        self.me = self.environment.world.spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
+
+        self.me = None
+        while not self.me:
+            self.me = self.environment.world.try_spawn_actor(self.environment.blueprints.filter('model3')[0], spawnLocation)
+            if not self.me:
+                for _ in range(10):
+                    self.environment.tick()
+
         self.nn = neuralNetwork
 
         self.speed = 0
         self.vehicleStopped = 0
         self.steer = 0
-        self.limit = 0.25
+        self.limit = 0.8
         self.defaultSteerMaxChange = 0.1
         self.numMeasure = 10
         self.lastLocation = self.getLocation()
@@ -178,15 +185,10 @@ class Vehicle(QObject):
 
         radar = self.sensorManager.radarMeasurement()
         left, right = self.sensorManager.lines()
-        isThere = InputsEnum.linedetect in self.askedInputs
-        if isThere and (np.sum(left) == 0 or np.sum(right) == 0):
-            # Lines is not detected!
-            self.steer = self.limitSteering(self.calcSteer(agentSteer, maxSteerChange))
-        else:
-            # Lines is detected!
-            inputs = self.processInputs(left, right, radar, agentSteer, waypoint)
-            outputNeural = self.nn.run(inputs, maxSteerChange)[0][0]
-            self.steer = self.limitSteering(outputNeural)
+
+        inputs = self.processInputs(left, right, radar, agentSteer, waypoint)
+        outputNeural = self.nn.run(inputs, maxSteerChange)[0][0]
+        self.steer = self.limitSteering(outputNeural)
 
         self.recordEachStep(agentSteer)
         control.steer = self.steer

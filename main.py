@@ -27,11 +27,21 @@ class Results(enum.IntEnum):
         return self.name.replace("_", " ")
 
 
+class Mode(enum.IntEnum):
+    trainingDefault = 0
+    showTrainingDefault = 1
+    runTestDefault = 2
+    trainingAdvanced = 3
+    showTrainingAdvanced = 4
+    runTestAdvanced = 5
+
+
 class Main(QCoreApplication):
-    def __init__(self, data):
+    def __init__(self, data, mode):
         super(Main, self).__init__([])
         self.time = time.time()
         self.data = data
+        self.mode = mode
 
         self.carlaEnvironment = CarlaEnvironment(self, data=data.value, debug=False)
 
@@ -42,32 +52,43 @@ class Main(QCoreApplication):
         finally:
             sys.exit(0)
 
-    def runTraining(self):
-        self.carlaEnvironment.train()
+    def exec(self):
+        # DEFAULT scenarios
+        if self.mode == Mode.trainingDefault:
+            self.training(False)
+        elif self.mode == Mode.showTrainingDefault:
+            self.showTrainingResult(False)
+        elif self.mode == Mode.runTestDefault:
+            self.runTest(False)
+        # ADVANCED scenarios
+        elif self.mode == Mode.trainingAdvanced:
+            self.training(True)
+        elif self.mode == Mode.showTrainingAdvanced:
+            self.showTrainingResult(True)
+        elif self.mode == Mode.runTestAdvanced:
+            self.runTest(True)
 
-    def showBestResult(self):
+        return super().exec()
+
+    def training(self, advanced):
+        self.carlaEnvironment.train(advanced)
+
+    def showTrainingResult(self, advanced):
         if self.data == Results.none:
             print("Need to pick some results")
             return
-        self.carlaEnvironment.replayTrainingRide(data.value)
+        self.carlaEnvironment.replayTrainingRide(data.value, advanced)
 
-    def runTest(self):
+    def runTest(self, advanced):
         if self.data == Results.none:
             print("Need to pick some results")
             return
-        self.carlaEnvironment.testRide(data.value)
-
-    def signal_handler(self, sig, frame):
-        print('You pressed Ctrl+C!')
-        sys.exit(0)
+        self.carlaEnvironment.testRide(data.value, advanced)
 
 
 if __name__ == '__main__':
-    data = Results.withoutLines
-
-    mainApp = Main(data)
-    # mainApp.runTraining()
-    mainApp.showBestResult()
-    # mainApp.runTest()
+    data = Results.Lines_Metrics_Binary_Navigation
+    mode = Mode.showTrainingAdvanced
+    mainApp = Main(data, mode)
     code = mainApp.exec()
     sys.exit(code)

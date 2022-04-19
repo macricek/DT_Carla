@@ -1,6 +1,11 @@
 import glob
 import os
 import sys
+import threading
+import time
+
+from generate_traffic import generateTraffic
+
 import pygame
 from Vehicle import Vehicle
 from CarlaConfig import CarlaConfig
@@ -58,6 +63,8 @@ class CarlaEnvironment(QObject):
         self.blueprints = self.world.get_blueprint_library()
         self.map = self.world.get_map()
 
+        self.traffic = False
+
         print("CARLA ENVIRONMENT DONE")
 
     def tick(self):
@@ -69,12 +76,13 @@ class CarlaEnvironment(QObject):
         tickNum = self.world.tick()
         return tickNum
 
-    def replayTrainingRide(self, numRevision):
+    def replayTrainingRide(self, numRevision, traffic):
         '''
         Spawn one car and "simulate" ride through waypoints
         :return: Nothing
         '''
         self.trainingMode = False
+        self.generateTraffic(traffic)
         spawnPoints = self.map.get_spawn_points()
         start = spawnPoints[99]
         self.whichPath = 0
@@ -83,8 +91,9 @@ class CarlaEnvironment(QObject):
         if self.loop():
             self.main.terminate()
 
-    def testRide(self, numRevision):
+    def testRide(self, numRevision, traffic):
         self.trainingMode = False
+        self.generateTraffic(traffic)
         spawnPoints = self.map.get_spawn_points()
         start = spawnPoints[334]
         self.whichPath = 1
@@ -92,8 +101,18 @@ class CarlaEnvironment(QObject):
         if self.loop():
             self.main.terminate()
 
-    def path(self):
-        return self.config.loadPath(self.whichPath)
+    def train(self, traffic):
+        self.trainingMode = True
+        if not self.loadedData:
+            self.config.incrementNE()
+        self.generateTraffic(traffic)
+        for i in range(self.NE.startCycle, self.NE.numCycle):
+            print(f"Starting EPOCH {i+1}/{self.NE.numCycle}")
+            # run one training epoch
+            self.trainingRide(i)
+            self.NE.perform()
+            self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
+        self.main.terminate()
 
     def trainingRide(self, epoch):
         '''
@@ -131,17 +150,18 @@ class CarlaEnvironment(QObject):
                 self.main.terminate()
                 return False
 
-    def train(self):
-        self.trainingMode = True
-        if not self.loadedData:
-            self.config.incrementNE()
-        for i in range(self.NE.startCycle, self.NE.numCycle):
-            print(f"Starting EPOCH {i+1}/{self.NE.numCycle}")
-            # run one training epoch
-            self.trainingRide(i)
-            self.NE.perform()
-            self.NE.finishNeuroEvolutionProcess()  # will probably block the thread
-        self.main.terminate()
+    def path(self):
+        return self.config.loadPath(self.whichPath)
+
+    def generateTraffic(self, generate):
+        if not generate:
+            return
+        self.traffic = True
+        self.trafficThread = threading.Thread(target=generateTraffic, args=(self.trafficGenerated,))
+        self.trafficThread.start()
+
+    def trafficGenerated(self):
+        return self.traffic
 
     def spawnVehicle(self, testRide, start, numRevision=0):
         '''
@@ -223,6 +243,13 @@ class CarlaEnvironment(QObject):
 
     def terminate(self):
         self.deleteAll()
+
+        if self.traffic:
+            self.traffic = False
+            for _ in range(3):
+                self.tick()
+                time.sleep(0.5)
+
         print("Turning off sync mode")
         self.trafficManager.set_synchronous_mode(False)
         self.config.turnOffSync()
