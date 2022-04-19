@@ -11,20 +11,17 @@ from fastAI.CameraGeometry import CameraGeometry
 
 class Results(enum.IntEnum):
     none = -1
-    all_possible_inputs = 2
-    Metrics_Binary_Navigation = 5
-    Metrics_Binary_Navigation_2 = 6
-    Lines_Metrics_Binary_Navigation = 22
-    Only_Lines = 61
-    Lines_Radar_Agent = 103
-    Metrics_Binary = 300
-    All_Except_Navigation = 301
+    All = 2
+    Navigation = 5
+    Lines_Navigation = 22
+    Lines = 300
+    Lines_Radar = 301
 
     def __str__(self):
         return self.value
 
     def title(self):
-        return self.name.replace("_", " ")
+        return self.name.replace("_", ", ")
 
 
 class Mode(enum.IntEnum):
@@ -88,7 +85,7 @@ class Main(QCoreApplication):
 
 if __name__ == '__main__':
     data = Results.Lines_Metrics_Binary_Navigation
-    mode = Mode.showTrainingAdvanced
+    mode = Mode.showTrainingDefault
     mainApp = Main(data, mode)
     code = mainApp.exec()
     sys.exit(code)
