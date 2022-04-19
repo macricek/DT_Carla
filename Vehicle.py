@@ -78,7 +78,7 @@ class Vehicle(QObject):
         self.speed = 0
         self.vehicleStopped = 0
         self.steer = 0
-        self.limit = 0.25
+        self.limit = 0.8
         self.defaultSteerMaxChange = 0.1
         self.numMeasure = 10
         self.lastLocation = self.getLocation()
