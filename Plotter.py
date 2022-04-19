@@ -108,6 +108,46 @@ def createGeneticForAllInOne():
     plt.savefig(f'results/compare.png')
 
 
+def plotPathAllInOne(type):
+    plt.figure()
+
+    for mem in Results:
+        if mem.value < 0:
+            continue
+
+        X = f'results/{mem}/X{type}.csv'
+        Y = f'results/{mem}/Y{type}.csv'
+        xNp = np.loadtxt(X, delimiter=',')
+        yNp = np.loadtxt(Y, delimiter=',')
+
+        if mem.value == 2:
+            labels = [mem.title(), 'LeftLine', 'RightLane']
+            for i in range(3):
+                if i > 0:
+                    plt.plot(xNp[i, :], yNp[i, :], '--', label=labels[i])
+                else:
+                    plt.plot(xNp[i, :], yNp[i, :], label=labels[i])
+        else:
+            for i in range(1):
+                plt.plot(xNp[i, :], yNp[i, :], label=mem.title())
+
+    xStart = np.array([xNp[0, 0]])
+    yStart = np.array([yNp[0, 0]])
+    if type == 0:
+        xEnd = np.array([-490])
+        yEnd = np.array([174])
+    else:
+        xEnd = np.array([211.2])
+        yEnd = np.array([-392.1])
+    plt.title(f"Comparasion of paths of vehicles")
+    plt.xlabel("x")
+    plt.ylabel("y")
+    plt.plot(xStart, yStart, 'c*', label="Start")
+    plt.plot(xEnd, yEnd, 'y*', label="End")
+    plt.legend()
+    plt.savefig(f'results/compare{type}.png')
+
+
 def actionForAllResults():
     for mem in Results:
         if mem.value < 0:
@@ -122,4 +162,6 @@ if __name__ == '__main__':
     # plotPath(res)
     # plt.show()
     createGeneticForAllInOne()
+    plotPathAllInOne(0)
+    plotPathAllInOne(1)
     #actionForAllResults()
