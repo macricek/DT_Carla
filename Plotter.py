@@ -90,6 +90,24 @@ def full(numRevision):
     plotPath(numRevision, 1)
 
 
+def createGeneticForAllInOne():
+    plt.figure()
+    for mem in Results:
+        if mem.value < 0:
+            continue
+
+        evolFile = f'results/{mem}/evol.csv'
+        evol = np.loadtxt(evolFile, delimiter=',')
+
+        plt.plot(evol, label=mem.title())
+
+    plt.title(f"Comparasion of genetic algorithms")
+    plt.xlabel("Cycles")
+    plt.ylabel("Fitness function value")
+    plt.legend()
+    plt.savefig(f'results/compare.png')
+
+
 def actionForAllResults():
     for mem in Results:
         if mem.value < 0:
@@ -103,5 +121,5 @@ if __name__ == '__main__':
     # plotGeneticResults(res)
     # plotPath(res)
     # plt.show()
-
-    actionForAllResults()
+    createGeneticForAllInOne()
+    #actionForAllResults()
