@@ -14,6 +14,7 @@ class Results(enum.IntEnum):
     All = 2
     Navigation = 5
     Lines_Navigation = 22
+    Radar = 204
     Lines = 300
     Lines_Radar = 301
 
@@ -84,8 +85,8 @@ class Main(QCoreApplication):
 
 
 if __name__ == '__main__':
-    data = Results.Lines_Metrics_Binary_Navigation
-    mode = Mode.showTrainingDefault
+    data = Results.Radar
+    mode = Mode.runTestDefault
     mainApp = Main(data, mode)
     code = mainApp.exec()
     sys.exit(code)

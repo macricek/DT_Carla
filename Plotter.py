@@ -160,8 +160,9 @@ if __name__ == '__main__':
     # full(res)
     # plotGeneticResults(res)
     # plotPath(res)
-    # plt.show()
+    #
     createGeneticForAllInOne()
     plotPathAllInOne(0)
     plotPathAllInOne(1)
-    #actionForAllResults()
+    actionForAllResults()
+    plt.show()
