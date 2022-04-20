@@ -59,7 +59,10 @@ def plotPath(numRevision, type=0):
     X = f'results/{numRevision}/X{type}.csv'
     Y = f'results/{numRevision}/Y{type}.csv'
     xNp = np.loadtxt(X, delimiter=',')
+    xNp = xNp[np.where(xNp != 0)]
     yNp = np.loadtxt(Y, delimiter=',')
+    yNp = yNp[np.where(yNp != 0)]
+
     xStart = np.array([xNp[0, 0]])
     yStart = np.array([yNp[0, 0]])
     if type == 0:
@@ -88,6 +91,7 @@ def full(numRevision):
     plotGeneticResults(numRevision)
     plotPath(numRevision, 0)
     plotPath(numRevision, 1)
+    plotPath(numRevision, 2)
 
 
 def createGeneticForAllInOne():
@@ -124,7 +128,7 @@ def plotPathAllInOne(type):
             labels = [mem.title(), 'LeftLine', 'RightLane']
             for i in range(3):
                 if i > 0:
-                    plt.plot(xNp[i, :], yNp[i, :], '--', label=labels[i])
+                    plt.plot(xNp[i, np.where(xNp[i] != 0)], yNp[i, np.where(yNp[i] != 0)], 'r*', label=labels[i])
                 else:
                     plt.plot(xNp[i, :], yNp[i, :], label=labels[i])
         else:
@@ -136,9 +140,12 @@ def plotPathAllInOne(type):
     if type == 0:
         xEnd = np.array([-490])
         yEnd = np.array([174])
-    else:
+    elif type == 1:
         xEnd = np.array([211.2])
         yEnd = np.array([-392.1])
+    elif type == 2:
+        xEnd = np.array([220.5])
+        yEnd = np.array([-169.5])
     plt.title(f"Comparasion of paths of vehicles")
     plt.xlabel("x")
     plt.ylabel("y")
@@ -161,8 +168,9 @@ if __name__ == '__main__':
     # plotGeneticResults(res)
     # plotPath(res)
     #
-    createGeneticForAllInOne()
-    plotPathAllInOne(0)
-    plotPathAllInOne(1)
-    actionForAllResults()
+    #createGeneticForAllInOne()
+    #plotPathAllInOne(0)
+    #plotPathAllInOne(1)
+    plotPathAllInOne(2)
+    #actionForAllResults()
     plt.show()
