@@ -40,7 +40,7 @@ class BasicAgent(object):
         self._last_traffic_light = None
 
         # Base parameters
-        self._ignore_traffic_lights = False
+        self._ignore_traffic_lights = True
         self._ignore_stop_signs = True
         self._ignore_vehicles = True
         self._target_speed = target_speed

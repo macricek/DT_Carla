@@ -91,12 +91,15 @@ class CarlaEnvironment(QObject):
         if self.loop():
             self.main.terminate()
 
-    def testRide(self, numRevision, traffic):
+    def testRide(self, numRevision, traffic, path):
         self.trainingMode = False
         self.generateTraffic(traffic)
         spawnPoints = self.map.get_spawn_points()
-        start = spawnPoints[334]
-        self.whichPath = 1
+        point = 334 if path == 1 else 258
+
+        start = spawnPoints[point]
+        self.whichPath = path
+
         self.spawnVehicle(True, start, numRevision)
         if self.loop():
             self.main.terminate()
@@ -206,14 +209,15 @@ class CarlaEnvironment(QObject):
             x[0, idx] = pos[idx].x
             y[0, idx] = pos[idx].y
 
+            x[3, idx] = op[idx].x
+            y[3, idx] = op[idx].y
+
+        for idx in range(len(ll)):
             x[1, idx] = ll[idx].x
             y[1, idx] = ll[idx].y
 
             x[2, idx] = rl[idx].x
             y[2, idx] = rl[idx].y
-
-            x[3, idx] = op[idx].x
-            y[3, idx] = op[idx].y
 
         rev = self.config.parser.get("NE", "rev")
         pathX = os.path.join(f"results/{rev}/X{self.whichPath}.csv")
