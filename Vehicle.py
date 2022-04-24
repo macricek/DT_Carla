@@ -229,8 +229,12 @@ class Vehicle(QObject):
             waypoints = self.agent.get_waypoints()[0]
             if waypoints:
                 self.__positionHistory.append(self.location)
-                self.__leftLinePlanner.append(waypoints.get_left_lane().transform.location)
-                self.__rightLinePlanner.append(waypoints.get_right_lane().transform.location)
+                ll = waypoints.get_left_lane()
+                if ll:
+                    self.__leftLinePlanner.append(ll.transform.location)
+                rl = waypoints.get_right_lane()
+                if rl:
+                    self.__rightLinePlanner.append(rl.transform.location)
                 self.__optimalPath.append(waypoints.transform.location)
 
     def returnVehicleResults(self):

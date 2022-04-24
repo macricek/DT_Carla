@@ -29,9 +29,10 @@ class Mode(enum.IntEnum):
     trainingDefault = 0
     showTrainingDefault = 1
     runTestDefault = 2
-    trainingAdvanced = 3
-    showTrainingAdvanced = 4
-    runTestAdvanced = 5
+    trainingTraffic = 3
+    showTrainingTraffic = 4
+    runTestTraffic = 5
+    runTestSecondPath = 6
 
 
 class Main(QCoreApplication):
@@ -57,14 +58,16 @@ class Main(QCoreApplication):
         elif self.mode == Mode.showTrainingDefault:
             self.showTrainingResult(False)
         elif self.mode == Mode.runTestDefault:
-            self.runTest(False)
+            self.runTest(False, 1)
         # ADVANCED scenarios
-        elif self.mode == Mode.trainingAdvanced:
+        elif self.mode == Mode.trainingTraffic:
             self.training(True)
-        elif self.mode == Mode.showTrainingAdvanced:
+        elif self.mode == Mode.showTrainingTraffic:
             self.showTrainingResult(True)
-        elif self.mode == Mode.runTestAdvanced:
-            self.runTest(True)
+        elif self.mode == Mode.runTestTraffic:
+            self.runTest(True, 1)
+        elif self.mode == Mode.runTestSecondPath:
+            self.runTest(False, 2)
 
         return super().exec()
 
@@ -77,16 +80,16 @@ class Main(QCoreApplication):
             return
         self.carlaEnvironment.replayTrainingRide(data.value, advanced)
 
-    def runTest(self, advanced):
+    def runTest(self, advanced, path):
         if self.data == Results.none:
             print("Need to pick some results")
             return
-        self.carlaEnvironment.testRide(data.value, advanced)
+        self.carlaEnvironment.testRide(data.value, advanced, path)
 
 
 if __name__ == '__main__':
-    data = Results.Radar
-    mode = Mode.runTestDefault
+    data = Results.Lines_Radar
+    mode = Mode.runTestSecondPath
     mainApp = Main(data, mode)
     code = mainApp.exec()
     sys.exit(code)

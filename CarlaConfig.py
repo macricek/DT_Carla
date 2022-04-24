@@ -151,6 +151,9 @@ class CarlaConfig:
         elif which == 1:
             x = [98.6, 272.5, 409.1, 410.7, 211.2]
             y = [34.7, 37.5, -37.2, -228.7, -392.1]
+        elif which == 2:
+            x = [258.9, 242, 200, 220.5]
+            y = [-186, -249.7, -229.6, -169.5]
         for i in range(len(x)):
             loc = carla.Location()
             loc.x = x[i]

@@ -36,10 +36,25 @@ def spawnMorons(client):
         #time.sleep(15)
         veh.destroy()
 
+def findClosestSpawnPoint(x, y):
+    loc = carla.Location()
+    loc.x = x
+    loc.y = y
+    loc.z = 0.267
+
+    client = carla.Client('localhost', 2000)
+    sp = client.get_world().get_map().get_spawn_points()
+    m = 10000
+    idx = 0
+    for i, p in enumerate(sp):
+        act = loc.distance(p.location)
+        if act < m:
+            m = act
+            idx = i
+
+    return m, idx, sp[idx]
+
 
 if __name__ == '__main__':
-    client = carla.Client('localhost', 2000)
-    client.set_timeout(30)
-    setMap(client)
-    #time.sleep(10)
-    #spawnMorons(client)
+    rang, idx, point = findClosestSpawnPoint(300.2, -172.7)
+    print(f"Range: {rang}, idx: {idx}, point: {point.location}")
