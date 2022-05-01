@@ -56,5 +56,8 @@ def findClosestSpawnPoint(x, y):
 
 
 if __name__ == '__main__':
-    rang, idx, point = findClosestSpawnPoint(300.2, -172.7)
-    print(f"Range: {rang}, idx: {idx}, point: {point.location}")
+    client = carla.Client('localhost', 2000)
+    sp = client.get_world().get_map().get_spawn_points()
+    print(sp[99])
+    print(sp[334])
+    print(sp[258])
