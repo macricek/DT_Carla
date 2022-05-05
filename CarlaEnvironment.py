@@ -26,6 +26,11 @@ import carla
 
 
 class CarlaEnvironment(QObject):
+    '''
+    Carla Environment
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     debug: bool
     trainingMode: bool
     config: CarlaConfig
@@ -41,6 +46,13 @@ class CarlaEnvironment(QObject):
     done = pyqtSignal()
 
     def __init__(self, main, data=-1, debug=False):
+        '''
+        Create an object of Carla environment.
+        :param main: reference to main (QCoreApplication)
+        :param data: default = -1 -> create new directory based on "rev" from config.ini
+                        if param is > 0 -> use the directory with the same name as data
+        :param debug: bool
+        '''
         super(CarlaEnvironment, self).__init__()
         self.id = 0
         self.debug = debug
@@ -78,8 +90,10 @@ class CarlaEnvironment(QObject):
 
     def replayTrainingRide(self, numRevision, traffic):
         '''
-        Spawn one car and "simulate" ride through waypoints
-        :return: Nothing
+        Spawn one car and "simulate" ride through waypoints of training path
+        :param numRevision: Which model will be used
+        :param traffic: bool -> use traffic?
+        :return: None
         '''
         self.trainingMode = False
         self.generateTraffic(traffic)
@@ -92,6 +106,13 @@ class CarlaEnvironment(QObject):
             self.main.terminate()
 
     def testRide(self, numRevision, traffic, path):
+        '''
+        Run test ride on one of the test paths.
+        :param numRevision: Which model will be used
+        :param traffic: bool
+        :param path: which path is going to be used (1,2)
+        :return:
+        '''
         self.trainingMode = False
         self.generateTraffic(traffic)
         spawnPoints = self.map.get_spawn_points()
@@ -105,6 +126,11 @@ class CarlaEnvironment(QObject):
             self.main.terminate()
 
     def train(self, traffic):
+        '''
+        Run training process, don't show anything at all, just cover whole training process
+        :param traffic: bool
+        :return:
+        '''
         self.trainingMode = True
         if not self.loadedData:
             self.config.incrementNE()
@@ -119,8 +145,8 @@ class CarlaEnvironment(QObject):
 
     def trainingRide(self, epoch):
         '''
-        Handles one epoch of training!
-        :return: Nothing
+        Handles one epoch of training
+        :return: None
         '''
         print("Starting training")
         for i in range(self.MAX_ID):
@@ -135,6 +161,11 @@ class CarlaEnvironment(QObject):
             self.loop()
 
     def loop(self):
+        '''
+        main loop for any paths/scenario -> send tick to server and call runStep from vehicle
+        :return:    True, if any vehicle ended
+                    False, if any error has occured
+        '''
         while True:
             try:
                 tickNum = self.tick()
@@ -154,9 +185,18 @@ class CarlaEnvironment(QObject):
                 return False
 
     def path(self):
+        '''
+        load path based on whichPath
+        :return: list of waypoints
+        '''
         return self.config.loadPath(self.whichPath)
 
     def generateTraffic(self, generate):
+        '''
+        generate Traffic if desired
+        :param generate: bool
+        :return: None
+        '''
         if not generate:
             return
         self.traffic = True
@@ -164,12 +204,18 @@ class CarlaEnvironment(QObject):
         self.trafficThread.start()
 
     def trafficGenerated(self):
+        '''
+        :return: bool: is traffic generated?
+        '''
         return self.traffic
 
     def spawnVehicle(self, testRide, start, numRevision=0):
         '''
         Spawn vehicle to starting spot (start) and create it.
-        :return: Nothing
+        :return: None
+        :param testRide: is it test ride? (bool)
+        :param start: point on map, where vehicle should be spawned
+        :param numRevision: in case of test ride, which NN model should be used
         '''
 
         if not testRide:
@@ -184,8 +230,8 @@ class CarlaEnvironment(QObject):
 
     def runStep(self, tickNum):
         '''
-        Ask all available vehicles to do their job.
-        :return:
+        Ask all available vehicles to do their job
+        :return: list of ended vehicles
         '''
         endedVehicles = []
         for vehicle in self.vehicles:
@@ -195,9 +241,9 @@ class CarlaEnvironment(QObject):
 
     def storeVehicleResults(self, vehicle: Vehicle):
         '''
-        We can expect that vehicle will have 4 lists
-        :param vehicle:
-        :return:
+        We can expect that vehicle will have 4 lists. Save this lists on disk with current revision
+        :param vehicle: Vehicle object
+        :return: None
         '''
         print("Storing results")
         pos, ll, rl, op = vehicle.returnVehicleResults()
@@ -226,6 +272,11 @@ class CarlaEnvironment(QObject):
         np.savetxt(pathY, y, delimiter=',')
 
     def deleteVehicle(self, vehicle):
+        '''
+        When vehicle ends, we need to delete it also from our list
+        :param vehicle: Vehicle
+        :return: None
+        '''
         for v in self.vehicles:
             if v == vehicle:
                 try:
@@ -236,6 +287,10 @@ class CarlaEnvironment(QObject):
                     print("Vehicle already out")
 
     def deleteAll(self):
+        '''
+        In case of error/ending the whole simulation, we wants to delete all vehicles.
+        :return: None
+        '''
         for vehicle in self.vehicles:
             try:
                 vehicle.destroy()
@@ -246,6 +301,10 @@ class CarlaEnvironment(QObject):
                 print("Already deleted!")
 
     def terminate(self):
+        '''
+        In case of error/ending simulation, gives signal to main to end the program
+        :return: None
+        '''
         self.deleteAll()
 
         if self.traffic:

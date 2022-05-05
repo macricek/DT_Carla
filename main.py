@@ -10,6 +10,9 @@ from fastAI.CameraGeometry import CameraGeometry
 
 
 class Results(enum.IntEnum):
+    '''
+    Enum of all current results
+    '''
     none = -1
     All = 2
     Navigation = 5
@@ -26,6 +29,9 @@ class Results(enum.IntEnum):
 
 
 class Mode(enum.IntEnum):
+    '''
+    Enum of all current supported modes
+    '''
     trainingDefault = 0
     showTrainingDefault = 1
     runTestDefault = 2
@@ -36,7 +42,17 @@ class Mode(enum.IntEnum):
 
 
 class Main(QCoreApplication):
+    '''
+    Main Class. This should be turned on to see the functionality!
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     def __init__(self, data, mode):
+        '''
+        Start the program.
+        :param data: which data will be used -> from Results enum
+        :param mode: which mode we want -> from Mode enum
+        '''
         super(Main, self).__init__([])
         self.time = time.time()
         self.data = data
@@ -45,6 +61,10 @@ class Main(QCoreApplication):
         self.carlaEnvironment = CarlaEnvironment(self, data=data.value, debug=False)
 
     def terminate(self):
+        '''
+        terminate the program
+        :return: None
+        '''
         print("Terminating MAIN!")
         try:
             self.carlaEnvironment.terminate()
@@ -52,6 +72,10 @@ class Main(QCoreApplication):
             sys.exit(0)
 
     def exec(self):
+        '''
+        Run defined mode by self.mode
+        :return: exec method from QCoreApplication
+        '''
         # DEFAULT scenarios
         if self.mode == Mode.trainingDefault:
             self.training(False)
@@ -72,15 +96,31 @@ class Main(QCoreApplication):
         return super().exec()
 
     def training(self, advanced):
+        '''
+        run training with traffic, if advanced
+        :param advanced: bool
+        :return: None
+        '''
         self.carlaEnvironment.train(advanced)
 
     def showTrainingResult(self, advanced):
+        '''
+        Show how vehicle performed on training path.
+        :param advanced: bool
+        :return: None
+        '''
         if self.data == Results.none:
             print("Need to pick some results")
             return
         self.carlaEnvironment.replayTrainingRide(data.value, advanced)
 
     def runTest(self, advanced, path):
+        '''
+        Run testing path
+        :param advanced: bool
+        :param path: 1 or 2
+        :return: None
+        '''
         if self.data == Results.none:
             print("Need to pick some results")
             return
@@ -88,8 +128,11 @@ class Main(QCoreApplication):
 
 
 if __name__ == '__main__':
-    data = Results.Lines_Radar
-    mode = Mode.runTestSecondPath
-    mainApp = Main(data, mode)
-    code = mainApp.exec()
-    sys.exit(code)
+    '''
+    Main code!
+    '''
+    data = Results.All                      # pick the data
+    mode = Mode.showTrainingDefault         # pick the mode
+    mainApp = Main(data, mode)              # start Main
+    code = mainApp.exec()                   # run it
+    sys.exit(code)                          # end the app with code

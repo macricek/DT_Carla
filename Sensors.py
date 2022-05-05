@@ -16,12 +16,19 @@ def convertStringToBool(string: str):
 
 
 class SensorManager(QtCore.QObject):
-    """
-    In case of Sync, we need to manage sensors when server ticks.
-    If mode is async, we could simply rely on callbacks.
-    """
+    '''
+    Handler of sensors. Holds reference to all sensors/cameras in list.
+    Based on config, it runs the sensors objects.
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
 
     def __init__(self, vehicle, environment):
+        '''
+        Create a SensorManager object.
+        :param vehicle: reference to Vehicle's object
+        :param environment: reference to CarlaEnvironment's object
+        '''
         super().__init__()
         self._queues = []
         self.sensors = []
@@ -48,6 +55,10 @@ class SensorManager(QtCore.QObject):
         self.activate()
 
     def addToSensorsList(self):
+        '''
+        Based on config's settings add sensors to list.
+        :return: None
+        '''
         settings: dict
         settings = self.config.readSection("Sensors")
         # SENSORS
@@ -73,49 +84,91 @@ class SensorManager(QtCore.QObject):
             self.cameras.append(self.segCam)
 
     def activate(self):
+        '''
+        Activate all sensors from self.sensors list
+        :return: None
+        '''
         for sensor in self.sensors:
             self.print(f"Activating {self.count}: {sensor.name}")
             self.count += 1
             sensor.activate()
 
     def processSensors(self):
+        '''
+        When tick came from server, process all sensors.
+        :return: None
+        '''
         for sensor in self.sensors:
             sensor.on_world_tick()
 
     def isCollided(self):
+        '''
+        Fast reference to collision sensor's method
+        :return: True if vehicle have collided, False if not
+        '''
         return self.collision.isCollided()
 
     def lines(self) -> (np.ndarray, np.ndarray):
+        '''
+        Fast reference to LineDetection camera's left and right line
+        :return: left [ndarray], right line [ndarray]
+        '''
         retLeft = copy.deepcopy(self.ldCam.left)
         retRight = copy.deepcopy(self.ldCam.right)
         self.ldCam.resetLines()
         return retLeft, retRight
 
     def radarMeasurement(self) -> np.ndarray:
+        '''
+        Fast reference to Radar's averages ranges
+        :return: average ranges of measures [ndarray]
+        '''
         return self.radar.returnAverageRanges()
 
     def destroy(self):
+        '''
+        Destroy all current sensors in self.sensors
+        :return: None
+        '''
         self.print(f"Invoking deletion of sensors of {self.vehicle.vehicleID} vehicle!")
         for sensor in self.sensors:
             self.print(f"Deleting sensor {sensor.name}")
             sensor.destroy()
 
     def print(self, message):
+        '''
+        print message if Sensor Manager is in debug mode
+        :param message: str to be printed
+        :return: None
+        '''
         if self.debug:
             print(message)
 
     def applyTesting(self):
+        '''
+        Apply test configuration:
+        Show all attached cameras + print debug messages to console
+        :return: None
+        '''
         self.debug = True
-        #self.rgbCam.show = True
-        # TODO: idk if processor is overhelmed by many cameras or what
         for camera in self.cameras:
             camera.show = True
 
 
 class Sensor(QtCore.QObject):
+    '''
+    Main class for all Sensors -> all sensors needs to inherit this class for proper functionality of SensorManager!
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     debug: bool = False
 
     def __init__(self, manager, debug):
+        '''
+        Create sensor object
+        :param manager: reference to SensorManager
+        :param debug: bool
+        '''
         super(Sensor, self).__init__()
         self.sensor = None
         self.bp = None
@@ -128,38 +181,79 @@ class Sensor(QtCore.QObject):
         self.debug = debug
 
     def callBack(self, data):
+        '''
+        Function that will handle data from sensor/camera later on
+        :param data: sensor's data (blueprint)
+        :return: None
+        '''
         pass
 
     def activate(self):
+        '''
+        activate current sensor:
+         - spawn it on world, attached to vehicle's BP
+         - add any new incoming data to queue
+        :return: None
+        '''
         self.sensor = self.world().spawn_actor(self.bp, self.where, attach_to=self.reference())
         self.sensor.listen(lambda data: self.queue.put(data))
 
     def on_world_tick(self):
+        '''
+        call handler of data when any data are ready in queue
+        :return: None
+        '''
         if self.debug:
             print(f"[{self.name}] on world tick")
         if self.queue.qsize() > 0:
             self.callBack(self.queue.get())
-        # print(f"Emitting ready for sensor {self.name}")
 
     def reference(self):
+        '''
+        :return: Reference to vehicle's BP (real vehicle model in carla)
+        '''
         return self.vehicle.ref()
 
     def setVehicle(self, vehicle):
+        '''
+        :param vehicle: Vehicle object
+        :return: None
+        '''
         self.vehicle = vehicle
 
     def blueprints(self):
+        '''
+        Fast reference to blueprints library
+        :return: carla.Blueprints library
+        '''
         return self.vehicle.environment.blueprints
 
     def world(self):
+        '''
+        Fast reference to world
+        :return: carla.World
+        '''
         return self.vehicle.environment.world
 
     def lineDetector(self):
+        '''
+        Fast reference to FALineDetector object
+        :return: FALineDetector object
+        '''
         return self.vehicle.fald
 
     def config(self):
+        '''
+        Fast reference to CarlaConfig object
+        :return: CarlaConfig
+        '''
         return self.vehicle.environment.config
 
     def destroy(self):
+        '''
+        Destroy self from world
+        :return: None
+        '''
         if self.sensor is not None:
             try:
                 self.sensor.destroy()
@@ -168,13 +262,31 @@ class Sensor(QtCore.QObject):
 
 
 class RadarSensor(Sensor):
+    '''
+    Radar Sensor
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
+
     def __init__(self, manager, debug=False):
+        '''
+        Set basic attributes for Radar.
+        Horizontal: (-45°; 45°)
+        Vertical: (-12,5°; 12,5°)
+        Max range: 50
+
+        Create three ranges - Left, Center and Right
+
+        :param manager: SensorManager
+        :param debug: bool
+        '''
         super().__init__(manager, debug)
         self.range = 50
         self.name = "Radar"
         self.bp = self.blueprints().find('sensor.other.radar')
         self.bp.set_attribute('horizontal_fov', str(90))
         self.bp.set_attribute('vertical_fov', str(25))
+        self.bp.set_attribute('range', str(self.range))
         self.where = carla.Transform(carla.Location(x=1.5, z=0.5))
 
         atDeg = [-35, 0, 35]
@@ -191,6 +303,14 @@ class RadarSensor(Sensor):
         self.center = 0
 
     def callBack(self, data):
+        '''
+        Handle radar data:
+        Parse measures based on azimuth into left, right and center lists
+        Calculate mean of these lists and store it in self.left, self.right and self.center
+
+        :param data: carla.RadarDetection
+        :return:
+        '''
         left = []
         right = []
         center = []
@@ -212,13 +332,26 @@ class RadarSensor(Sensor):
         self.center = fmean(center) if len(center) > 0 else self.range
 
     def returnAverageRanges(self) -> np.ndarray:
+        '''
+        :return: array consists of average distances in [left, center, right]
+        '''
         return np.array([self.left, self.center, self.right])
 
 
 class CollisionSensor(Sensor):
+    '''
+    Collision Sensor - detect collision in front of the vehicle
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     collided: bool
 
     def __init__(self, manager, debug=False):
+        '''
+        Set collided mode to false and init sensor
+        :param manager: SensorManager
+        :param debug: bool
+        '''
         super().__init__(manager, debug)
         self.name = "Collision"
         self.collided = False
@@ -226,27 +359,60 @@ class CollisionSensor(Sensor):
         self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
     def callBack(self, data):
+        '''
+        If there is incoming event, it means we have collided -> set collided to True
+        :param data: carla.collisionEvent
+        :return: None
+        '''
         self.collided = True
         print("Vehicle {id} collided!".format(id=self.vehicle.vehicleID))
 
     def isCollided(self):
+        '''
+        :return: current collided state
+        '''
         return self.collided
 
 
 class ObstacleDetector(Sensor):
-    def __init__(self, vehicle, debug=False):
-        super().__init__(vehicle, debug)
+    '''
+    Obstacle Detector - currently unused
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
+    def __init__(self, manager, debug=False):
+        '''
+        Init obstacle detector
+        :param manager: SensorManager
+        :param debug: bool
+        '''
+        super().__init__(manager, debug)
         self.name = "Obstacle"
         self.bp = self.blueprints().find('sensor.other.obstacle')
         self.where = carla.Transform(carla.Location(x=1.5, z=0.7))
 
     def callBack(self, data):
+        '''
+        parse distance to closest obstacle
+        :param data: carla.obstacleMeasurement
+        :return: None
+        '''
         distance = data.distance
         print("{distance}".format(distance=distance))
 
 
 class LidarSensor(Sensor):
+    '''
+    Lidar Sensor - currently unused
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     def __init__(self, manager, debug=False):
+        '''
+        Spawn lidar sensor into middle of vehicle with one channel
+        :param manager: SensorManager
+        :param debug: bool
+        '''
         super().__init__(manager, debug)
         self.name = "Lidar"
         self.bp = self.blueprints().find('sensor.lidar.ray_cast')
@@ -254,6 +420,11 @@ class LidarSensor(Sensor):
         self.where = carla.Transform(carla.Location(x=0, y=0, z=0))
 
     def callBack(self, data):
+        '''
+        Parse lidar data. It's hard to filter, there are so many points...
+        :param data: carla.LidarMeasurement
+        :return: None
+        '''
         if self.debug:
             number = 0
             for location in data:
@@ -262,7 +433,19 @@ class LidarSensor(Sensor):
 
 
 class LaneInvasionDetector(Sensor):
+    '''
+    Lane Invasion Detector - used to know, when we cross line
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
+
     def __init__(self, manager, debug=False):
+        '''
+        Init the LineInvasionDetector
+        :param manager: SensorManager
+        :param debug: bool
+        set crossings counter to 0
+        '''
         super().__init__(manager, debug)
         self.name = "LaneInvasion"
         self.bp = self.blueprints().find('sensor.other.lane_invasion')
@@ -272,6 +455,11 @@ class LaneInvasionDetector(Sensor):
         self.lastCross = -5
 
     def callBack(self, data):
+        '''
+        add every crossing to crossings counter
+        :param data: carla.LaneInvasionEvent
+        :return:
+        '''
         frameCrossed = data.frame
         if self.debug:
             print(f"Vehicle {self.vehicle.vehicleID} crossed line!")
@@ -281,6 +469,14 @@ class LaneInvasionDetector(Sensor):
 
 
 class Camera(Sensor):
+    '''
+    Basic Camera - default usage as watcher from behind of the car
+    @author: Marko Chylik
+    @Date: May, 2022
+
+    Define options dictionary to apply default settings for all possible cameras.
+    '''
+
     name: str
 
     options = {
@@ -291,6 +487,16 @@ class Camera(Sensor):
     }
 
     def __init__(self, manager, debug=False, show=True):
+        '''
+        Init Camera.
+        :param manager: SensorManager
+        :param debug: bool
+        :param show: bool -> if true, camera's image will be displayed
+
+        Set height and width of image based on config
+        Set bounding box around the car to calculate proper middle of the 3D area
+        '''
+
         super().__init__(manager, debug)
         d = self.config().readSection('Camera')
         self.camHeight = int(d["height"])
@@ -306,6 +512,10 @@ class Camera(Sensor):
         self.create()
 
     def create(self):
+        '''
+        Create camera based on name of the camera, then apply default settings from options dictionary
+        :return: None
+        '''
         typeOfCamera = self.options.get(self.name)[0]
         self.bp = self.blueprints().find(typeOfCamera)
         self.bp.set_attribute('image_size_x', f'{self.camWidth}')
@@ -315,6 +525,11 @@ class Camera(Sensor):
                                      carla.Rotation(pitch=-8.0))
 
     def callBack(self, data):
+        '''
+        handle Camera's output - convert image data, if we are using some special camera
+        :param data: carla.Image
+        :return:
+        '''
         if self.debug:
             print(f"Entering {self.name} callback!")
         data.convert(self.options.get(self.name)[1])
@@ -326,8 +541,10 @@ class Camera(Sensor):
 
     def draw(self):
         '''
-        IN SEPARATE THREAD!
-        :return: Nothing
+        !IN SEPARATE THREAD!
+        Show the image from camera using openCV imshow.
+        When stop is coming from SensorManager, we need to break the infinite while
+        :return: None
         '''
         print(f"[{self.name}]Starting drawing process")
         while True:
@@ -340,14 +557,26 @@ class Camera(Sensor):
             cv2.waitKey(1)
 
     def invokeDraw(self):
+        '''
+        Invoke draw - start separate thread. Ensure, that could happen just once per every camera!
+        :return: None
+        '''
         if self.show and self.drawingThread is None:
             self.drawingThread = threading.Thread(target=self.draw)
             self.drawingThread.start()
 
     def isMain(self):
+        '''
+        This is determined by camera's name
+        :return: bool
+        '''
         return self.name == 'Main'
 
     def destroy(self):
+        '''
+        destroy Camera, but first wait until thread that is drawing the camera's image is finished
+        :return:
+        '''
         if self.drawingThread is not None:
             self.show = False
             self.stop = True  # break showing threads
@@ -359,10 +588,25 @@ class Camera(Sensor):
 
 
 class LineDetectorCamera(Camera):
+    '''
+    Special camera in front of vehicle used to line detection
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     left: np.ndarray
     right: np.ndarray
 
     def __init__(self, manager, debug=False, show=True):
+        '''
+        Init of this camera. Use Camera's attributes
+        :param manager: SensorManager
+        :param debug: bool
+        :param show: bool
+
+        set name to LineDetection
+        set self.at to [0, 7.5, 15]. It means that polynomial approximation will be used with these as x.
+        y = a3 * x^3 + a2 * x^2 + a1 * x + a0
+        '''
         super(LineDetectorCamera, self).__init__(manager, debug, show)
         self.name = 'LineDetection'
         self.create()
@@ -372,7 +616,7 @@ class LineDetectorCamera(Camera):
     def predict(self):
         '''
         loads image to LineDetector and predicts where are lines
-        :return: Nothing
+        :return: None
         '''
         self.lineDetector().loadImage(numpyArr=self.image)
         self.lineDetector().predict()
@@ -380,7 +624,7 @@ class LineDetectorCamera(Camera):
     def lines(self):
         '''
         Left and right points in range "self.at"
-        :return:
+        :return: None
         '''
         ll, rl = self.lineDetector().extractPolynomials()
         self.left = self.validateLine(ll(self.at))
@@ -388,6 +632,14 @@ class LineDetectorCamera(Camera):
 
     @staticmethod
     def validateLine(line: np.ndarray) -> np.ndarray:
+        '''
+        Validate, if LineDetection is accurate based on statistical methods:
+        if maximum value of line is more than 3, Lines are invalid.
+        if variance of lines are more than 2, Lines are invalid.
+
+        :param line: ndarray of 3 points based on polynomials.
+        :return: line, if line is valid. If not, return zeros.
+        '''
         variance = np.var(line)
         maxVal = np.max(np.abs(line))
 
@@ -399,18 +651,39 @@ class LineDetectorCamera(Camera):
         return line
 
     def resetLines(self):
+        '''
+        After lines are read, reset them to zeros, to not use them more than once
+        :return: None
+        '''
         self.left = np.zeros([1, len(self.at)])
         self.right = np.zeros([1, len(self.at)])
 
     def create(self):
+        '''
+        Create Camera for line detection purposes
+        :return:
+        '''
         super(LineDetectorCamera, self).create()
         self.where = carla.Transform(carla.Location(x=2.5, z=1.3), carla.Rotation(pitch=-5.0))
 
     def invokeDraw(self):
+        '''
+        Integrate lines towards the image that will be shown.
+        :return:
+        '''
         self.lineDetector().integrateLines()
         super(LineDetectorCamera, self).invokeDraw()
 
     def callBack(self, data):
+        '''
+        Handle incoming image data:
+            1) predict the lines on u x v image
+            2) get lines points based on polynomial approximation
+            3) draw them towards the data (to show them properly)
+
+        :param data: carla.Image
+        :return: None
+        '''
         super().callBack(data)
         self.predict()
         self.lines()
@@ -418,15 +691,35 @@ class LineDetectorCamera(Camera):
 
 
 class SegmentationCamera(Camera):
+    '''
+    Segmentation Camera - not used
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     def __init__(self, manager, debug=False, show=True):
+        '''
+        Init camera -> set name to Semantic Segmentation
+        :param manager: SensorManager
+        :param debug: bool
+        :param show: bool
+        '''
         super(SegmentationCamera, self).__init__(manager, debug, show)
         self.name = 'Semantic Segmentation'
         self.create()
 
     def create(self):
+        '''
+        Create camera with specific image options from directory
+        :return:
+        '''
         super(SegmentationCamera, self).create()
         self.where = carla.Transform(carla.Location(x=2.5, z=0.7))
 
     def callBack(self, data):
+        '''
+        Handle data -> just draw it.
+        :param data: carla.Image
+        :return:
+        '''
         super(SegmentationCamera, self).callBack(data)
         self.invokeDraw()
