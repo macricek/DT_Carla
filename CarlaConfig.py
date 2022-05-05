@@ -48,9 +48,19 @@ class InputsEnum(enum.Enum):
 
 
 class CarlaConfig:
+    '''
+    Carla Config parser
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     client: carla.Client
 
     def __init__(self, client=None, path="config.ini"):
+        '''
+        Init the config object with carla.Client reference and path to config on hard drive
+        :param client: carla.Client
+        :param path: path towards config file on hard drive
+        '''
         self.client = client
         self.parser = configparser.ConfigParser()
         self.path = path
@@ -82,9 +92,18 @@ class CarlaConfig:
         self.client.set_timeout(5)
 
     def readSection(self, section):
+        '''
+        read the section and return dictionary
+        :param section: name of section in ini file
+        :return: dict
+        '''
         return dict(self.parser.items(section))
 
     def loadNEData(self) -> dict:
+        '''
+        load data for neuro-evolution: rewrite num of inputs based on which of them are asked
+        :return: dictionary of data
+        '''
         listIns, count = self.loadAskedInputs()
         self.parser.set("NE", "nInput", str(count))
         self.rewrite(self.path)
@@ -92,10 +111,19 @@ class CarlaConfig:
         return expDict
 
     def rewrite(self, path):
+        '''
+        rewrite current configfile to new one on PATH
+        :param path: where config should be stored
+        :return: None
+        '''
         with open(path, 'w') as configfile:
             self.parser.write(configfile)
 
     def incrementNE(self):
+        '''
+        when running new configuration, we need to create file for it and increment rev
+        :return: None
+        '''
         expDict = self.loadNEData()
         base = str(expDict.get("base"))
 
@@ -112,6 +140,10 @@ class CarlaConfig:
         self.rewrite(self.path)
 
     def loadAskedInputs(self) -> (list, int):
+        '''
+        load which of inputs are asked based on config
+        :return: list of inputs, number of inputs
+        '''
         nnIns = self.readSection("NnInputs")
         expectedList = []
         count = 0
@@ -125,6 +157,10 @@ class CarlaConfig:
         return expectedList, count
 
     def turnOffSync(self):
+        '''
+        when simulation ends, we want to turn off sync mode
+        :return:
+        '''
         world = self.client.get_world()
         if self.sync:
             settings = self.client.get_world().get_settings()
@@ -134,6 +170,10 @@ class CarlaConfig:
             print("Sync mode turned off!")
 
     def turnOnSync(self):
+        '''
+        when simulation starts, we want to turn on the sync mode
+        :return:
+        '''
         world = self.client.get_world()
         if not self.sync:
             settings = self.client.get_world().get_settings()
@@ -144,6 +184,11 @@ class CarlaConfig:
 
     @staticmethod
     def loadPath(which=0) -> queue.Queue:
+        '''
+        load waypoints of asked path:
+        :param which: 0 -> training, 1 -> testing1, 2 -> testing 2
+        :return: Queue
+        '''
         path = queue.Queue()
         if which == 0:
             x = [-8.6, -121.8, -363.4, -463.6, -490]
