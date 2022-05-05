@@ -25,6 +25,11 @@ CAM_WIDTH = 1024
 
 
 class Vehicle(QObject):
+    '''
+    Vehicle implementation
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     me = carla.Vehicle  # ref to vehicle
 
     # states of vehicle
@@ -58,6 +63,13 @@ class Vehicle(QObject):
     __rangeDriven = 0
 
     def __init__(self, environment, spawnLocation, neuralNetwork, id):
+        '''
+        Init vehicle and spawn it
+        :param environment: reference to CarlaEnvironment
+        :param spawnLocation: point on map, where Vehicle should be spawned
+        :param neuralNetwork: NeuralNetwork object
+        :param id: which vehicle from population of vehicles this is
+        '''
         super(Vehicle, self).__init__()
         self.vehicleID = id
         self.environment = environment
@@ -100,6 +112,7 @@ class Vehicle(QObject):
     def run(self, tickNum):
         '''
         Do a tick response for vehicle object
+        :param tickNum: current tickNum from server
         :return: True, if vehicle is alive; False, if ending conditions were MET
         '''
         if not self.me or self.sensorManager.isCollided() or self.checkGoal():
@@ -124,8 +137,8 @@ class Vehicle(QObject):
 
     def agentAction(self):
         '''
-        Usage of agent to reach expected speed.
-        :return: carla.Control
+        Usage of agent to reach expected speed and navigation implementation
+        :return: carla.Control, current waypoint from navigation
         '''
         if self.agent.done():
             self.print(f"New waypoint for agent: {self.goal}")
@@ -142,7 +155,7 @@ class Vehicle(QObject):
         '''
         Init BasicAgent - we will use agent's PID to regulate speed.
         :param spawnLoc: carla.Location -> starting Location of agent
-        :return: nothing
+        :return: None
         '''
         self.getLocation()
         while self.diffToLocation(spawnLoc) > 1:
@@ -154,6 +167,10 @@ class Vehicle(QObject):
         self.agent.set_destination(self.goal)
 
     def record(self):
+        '''
+        Record the training ride and make a summary of it into dictionary.
+        :return: dictionary
+        '''
         self.__crossings = self.sensorManager.laneInvasionDetector.crossings
         self.__collisions = 1 if self.sensorManager.isCollided() else 0
         retDict = {'crossings': self.__crossings,
@@ -166,6 +183,11 @@ class Vehicle(QObject):
         return retDict
 
     def recordEachStep(self, agentSteer):
+        '''
+        Some of the parameters needs to be recorded at every step.
+        :param agentSteer: steer suggested by agent
+        :return: None
+        '''
         self.__errDec += abs(agentSteer - self.steer)
 
         distLast = self.errInLocation(self.lastLocation, self.goal)
@@ -174,12 +196,17 @@ class Vehicle(QObject):
         difference = distLast - distNow
         self.__rangeDriven += difference if 10 > difference > -5 else 0
 
-    def getControl(self, testingRide=False):
+    def getControl(self, useAutopilot=False):
+        '''
+        calculate the steering:
+        :param useAutopilot: use autopilot
+        :return: carla.Control
+        '''
         maxSteerChange = self.dynamicMaxSteeringChange()
         control, waypoint = self.agentAction()
         agentSteer = control.steer
 
-        if testingRide:
+        if useAutopilot:
             self.steer = control.steer
             return control
 
@@ -195,6 +222,11 @@ class Vehicle(QObject):
         return control
 
     def limitSteering(self, askedChange):
+        '''
+        block bigger changes - this should never happen, but we need to ensure it
+        :param askedChange: change of steering
+        :return: real change of steering
+        '''
         actualSteer = self.steer
         askedSteer = actualSteer + askedChange
 
@@ -206,6 +238,15 @@ class Vehicle(QObject):
         return askedSteer
 
     def processInputs(self, left, right, radar, agentSteer, waypoint):
+        '''
+        based on config, we want to use just some of inputs. This function will pick them for us
+        :param left: left line from detector
+        :param right: right line from detector
+        :param radar: radar measures
+        :param agentSteer: suggested agent steering
+        :param waypoint: the next waypoint from navigation
+        :return: ndarray of all inputs
+        '''
         inputs = np.array([])
 
         for asked in self.askedInputs:
@@ -225,6 +266,11 @@ class Vehicle(QObject):
         return inputs
 
     def storeCurrentData(self):
+        '''
+        when we are running test scenarios / showing the best on training, we want to store the history of movement of
+        the vehicle, left, right lane and optimal path based on navigation - store it in global class members
+        :return: None
+        '''
         if self.debug:
             waypoints = self.agent.get_waypoints()[0]
             if waypoints:
@@ -238,14 +284,19 @@ class Vehicle(QObject):
                 self.__optimalPath.append(waypoints.transform.location)
 
     def returnVehicleResults(self):
+        '''
+        when we are running test scenarios / showing the best on training, return all eligible measures when vehicle
+         ends
+        :return: position, left line, right line, navigation path
+        '''
         return self.__positionHistory, self.__leftLinePlanner, self.__rightLinePlanner, self.__optimalPath
 
-    def calcSteer(self, agentSteer, maxChange):
-        direction = 1 if agentSteer > self.steer else -1
-        difference = min(abs(agentSteer - self.steer), maxChange*2)
-        return direction * difference
-
     def dynamicMaxSteeringChange(self):
+        '''
+        Max steering change based on the current speed of vehicle.
+        If speed is more than 10km/h, we will use 0,8/speed; else just 0,8.
+        :return: float
+        '''
         # Speed will be 0 - 50, so max division will be 5
         speed = self.getSpeed() / 10
         return self.defaultSteerMaxChange / speed if speed > 1 else self.defaultSteerMaxChange
@@ -283,6 +334,11 @@ class Vehicle(QObject):
             return False
 
     def inCycle(self):
+        '''
+        determine, that vehicle is not moving towards the goals and probably are stucked in cycle. It's used just in
+        training scenarios.
+        :return: bool
+        '''
         now = time.time()
         timeBool = now > 300 + self.startTime  # gives timeout 5 min
 
@@ -299,6 +355,12 @@ class Vehicle(QObject):
             return False
 
     def applyConfig(self, testing):
+        '''
+        If we are running test config, we want to change a few things - Record the vehicle's path more frequently
+                                                                        apply test config for sensors/cameras
+        :param testing: bool
+        :return: None
+        '''
         self.debug = testing
         if testing:
             self.numMeasure = 8
@@ -315,12 +377,23 @@ class Vehicle(QObject):
         return self.location
 
     def diffToLocation(self, location: carla.Location):
+        '''
+        difference to location from current location of vehicle
+        :param location: carla.Location
+        :return: distance [float]
+        '''
         self.getLocation()
         dist = location.distance(self.location)
         return dist
 
     @staticmethod
     def errInLocation(l1: carla.Location, l2: carla.Location):
+        '''
+        error from L1 to L2
+        :param l1: carla.Location
+        :param l2: carla.Location
+        :return: distance [float]
+        '''
         dist = l1.distance(l2)
         return dist
 
