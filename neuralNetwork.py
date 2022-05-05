@@ -5,6 +5,11 @@ import numpy as np
 
 
 def loadNNParamsFromConfig(nnConfig):
+    '''
+    Load Neural Network parameters -> size of input, hidden, outputs
+    :param nnConfig: config.ini parser
+    :return: size of inputs, hidden, outputs in expected shape for NN
+    '''
     nInputs = int(nnConfig.get("ninput"))
     nHiddenOne = int(nnConfig.get("nhidden"))
     nHidden = []
@@ -18,6 +23,12 @@ def loadNNParamsFromConfig(nnConfig):
 
 
 def check(num, limit):
+    '''
+    Check if num is in range <-limit,limit>. If not, return max/min
+    :param num: number
+    :param limit: upper range
+    :return: checked number
+    '''
     if num > limit:
         return limit
     elif num < -limit:
@@ -30,7 +41,8 @@ class NeuralNetwork:
     '''
     Basic MLP neural network implementation
     @author: Marko Chylik
-    @2022
+    @author: Marko Chylik
+    @Date: May, 2022
     '''
     nInput = 0
     nHiddenLayers = 0
@@ -141,6 +153,13 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeLinesInputs(left: np.ndarray, right: np.ndarray) -> np.ndarray:
+        '''
+        Normalize lines to MLP range
+        :param left: numpy array with points of left line
+        :param right: numpy array with points of right line
+        :return: normalized numpy array of both lines together
+        '''
+
         leftRight = np.concatenate((left, right), axis=0)
         norm = np.linalg.norm(leftRight)
         if norm == 0:
@@ -149,6 +168,12 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeRadarInputs(radar: np.ndarray) -> np.ndarray:
+        '''
+        Normalize radar measures, as we expect that maximal distance of measurement is 50
+        :param radar: measures
+        :return: 0 - 1 range of measures
+        '''
+
         coef = 50
         if np.max(radar) > coef:
             coef = np.max(radar)
@@ -156,10 +181,21 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeAgent(agent: int) -> np.ndarray:
+        '''
+        Transform agent to ndarray
+        :param agent: agent's suggested steering
+        :return: ndarray (1x1) for NN
+        '''
         return np.array([agent])
 
     @staticmethod
     def normalizeMetrics(metrics: deque, limit) -> np.ndarray:
+        '''
+        Normalize metrics by current vehicle's steering limit
+        :param metrics: deque consists of two values
+        :param limit: steering limit of vehicle
+        :return: ndarray (1x2) for NN
+        '''
         mList = []
         if len(metrics) < 2:
             return np.array([0, 0])
@@ -171,14 +207,21 @@ class NeuralNetwork:
 
     @staticmethod
     def normalizeBinary(binary: list) -> np.ndarray:
+        '''
+        Convert binary inputs from list to ndarray
+        :param binary: list of binary inputs
+        :return: ndarray (1x4) for NN
+        '''
         return np.asarray(binary)
 
     @staticmethod
     def normalizeNavigation(currentLocation, waypoint) -> np.ndarray:
         '''
         normalizing into {-1,1}. Expecting max will be 2 metres away.
+        :param currentLocation: carla.Location of vehicle
+        :param waypoint: carla.Location of wp
+        :return: ndarray (1x2) for NN
         '''
-
         if not waypoint:
             return np.asarray([0, 0])
 
