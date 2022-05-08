@@ -12,6 +12,11 @@ from fastAI.CameraGeometry import CameraGeometry
 
 
 class FALineDetector:
+    '''
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
+
     torchModel: str
     fastAiModel: str
     image: ndarray

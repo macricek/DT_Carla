@@ -7,6 +7,11 @@ import torch
 from SegmentationAlbumentationsTransformation import SegmentationAlbumentationsTransformation
 from fastseg import MobileV3Small
 
+'''
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
+
 
 def get_image_array_from_fn(fn):
     image = cv2.imread(fn)

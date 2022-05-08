@@ -62,6 +62,10 @@ def transformImage(image, transformation=None, mask=None):
 
 
 class LaneDetectionDataset(Dataset):
+    '''
+    @author: Marko Chylik
+    @Date: May, 2022
+    '''
     def __init__(self, path, val=False, transforms=None):
         self.transforms = transforms
         if not val:
@@ -89,6 +93,11 @@ class LaneDetectionDataset(Dataset):
 
 
 class CNNLineDetector:
+    '''
+        @author: Marko Chylik
+        @Date: May, 2022
+    '''
+
     def __init__(self, from_scratch=True, path='torchUnet/unet_model.pth', dataPath=data_path):
         self.val_epoch = None
         self.train_epoch = None
