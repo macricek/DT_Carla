@@ -88,7 +88,7 @@ class NeuroEvolution(QObject):
         cCrossings = 5
         cCollisions = 5000
         cInCycle = 5000
-        cError = 1
+        cError = 0
         cRangeDriven = -3
         cReachedGoals = -2500
 
