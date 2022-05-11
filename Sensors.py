@@ -175,7 +175,6 @@ class Sensor(QtCore.QObject):
         self.where = None
         self.manager = manager
         self.name = "Sensor"
-        # self.ready = False
         self.queue = queue.Queue()
         self.vehicle = manager.vehicle
         self.debug = debug
